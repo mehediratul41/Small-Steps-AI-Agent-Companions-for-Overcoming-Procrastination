@@ -1,2 +1,7 @@
-# small-steps-hai
-Small Steps: a bilingual Human–AI Interaction research app investigating Self-Agent and Friend-Agent support for self-control, task initiation, and reduced procrastination. Flutter + FastAPI.
+# Small Steps — Human–AI Interaction Research
+
+Small Steps is a bilingual (English/Japanese) research application investigating how Self-Agent and Friend-Agent support self-control, task initiation, and reduced procrastination.
+
+Built with Flutter and FastAPI, with a standard notification control condition for comparison.
+
+Research prototype developed for a master’s project at Shimane University, Japan. This repository does not establish intervention effectiveness.
