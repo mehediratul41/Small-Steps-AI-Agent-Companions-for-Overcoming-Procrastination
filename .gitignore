@@ -57,6 +57,8 @@ consent_forms/
 # Local conversations, screenshots, backups and intermediate work
 /work/
 /artifacts/
+/outputs/frontend/design-review/
+/outputs/backend/*.png
 .tool-state/
 .tools/
 .agents/
