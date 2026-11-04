@@ -89,8 +89,7 @@ void main() {
       expect(c.read(appProvider).messages, hasLength(1));
       expect(c.read(appProvider).messages.single.delivery, 'failed');
       expect(find.text('Couldn’t send'), findsOneWidget);
-      await tester.tap(find.byTooltip('Message options'));
-      await tester.pumpAndSettle();
+      final originalId = c.read(appProvider).messages.single.id;
       await tester.tap(find.text('Edit message'));
       await tester.pumpAndSettle();
       expect(
@@ -101,6 +100,15 @@ void main() {
         'One synthetic attempt',
       );
       expect(c.read(appProvider).messages.single.delivery, 'cancelled');
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+      final messages = c.read(appProvider).messages;
+      expect(messages, hasLength(3));
+      expect(messages[0].id, originalId);
+      expect(messages[0].delivery, 'cancelled');
+      expect(messages[1].id, isNot(originalId));
+      expect(messages[1].delivery, 'sent');
+      expect(messages[2].user, isFalse);
     },
   );
 
@@ -284,6 +292,57 @@ void main() {
           api.participant(),
           throwsA(
             isA<AppFailure>().having((e) => e.code, 'category', entry.value),
+          ),
+        );
+        api.close();
+      }
+    },
+  );
+  test(
+    'provider causes are allowlisted rather than trusting server error text',
+    () async {
+      for (final cause in {
+        'capacity': 'capacity',
+        'quota': 'quota',
+        'access': 'provider_access',
+      }.entries) {
+        final dio = Dio(BaseOptions(baseUrl: 'https://synthetic.example'));
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (request, handler) {
+              handler.reject(
+                DioException(
+                  requestOptions: request,
+                  response: Response(
+                    requestOptions: request,
+                    statusCode: 503,
+                    data: {
+                      'error': {
+                        'code': 'ai_${cause.key}',
+                        'message': 'private-provider-details',
+                      },
+                    },
+                  ),
+                  type: DioExceptionType.badResponse,
+                ),
+              );
+            },
+          ),
+        );
+        final api = ApiResearchRepository(
+          'https://synthetic.example',
+          client: dio,
+        );
+        await expectLater(
+          api.participant(),
+          throwsA(
+            isA<AppFailure>()
+                .having((e) => e.code, 'safe category', cause.value)
+                .having(
+                  (e) => e.message.contains('private-provider-details'),
+                  'no raw provider text',
+                  false,
+                ),
           ),
         );
         api.close();

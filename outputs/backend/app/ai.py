@@ -55,7 +55,15 @@ PERSONALITY = {
 
 
 class AIUnavailable(Exception):
-    pass
+    # Only allowlisted categories cross the provider boundary, never raw exceptions.
+    def __init__(self, reason="unavailable"):
+        self.reason = reason if reason in {"capacity", "quota", "access", "timeout"} else "unavailable"
+        super().__init__("AI service unavailable")
+
+    @classmethod
+    def from_provider(cls, error):
+        code = getattr(error, "code", None)
+        return cls({503: "capacity", 429: "quota", 401: "access", 403: "access", 504: "timeout"}.get(code))
 
 
 class Provider(Protocol):
@@ -258,9 +266,9 @@ class GeminiProvider:
             if not text or len(text) > 8000:
                 raise AIUnavailable()
             return text
-        except Exception:
+        except Exception as error:
             # Provider exceptions may contain request URLs or credentials; never expose/log them.
-            raise AIUnavailable() from None
+            raise AIUnavailable.from_provider(error) from None
 
     async def refine(self, task, variant, condition="selfAgent", language="en"):
         try:
@@ -282,8 +290,8 @@ class GeminiProvider:
             for step in suggestion.subtasks:
                 step.done = False
             return suggestion
-        except Exception:
-            raise AIUnavailable() from None
+        except Exception as error:
+            raise AIUnavailable.from_provider(error) from None
 
     async def correct(self, task, condition, language="en"):
         try:
@@ -302,8 +310,8 @@ class GeminiProvider:
                 ),
             )
             return TaskCorrection.model_validate_json(response.text or "")
-        except Exception:
-            raise AIUnavailable() from None
+        except Exception as error:
+            raise AIUnavailable.from_provider(error) from None
 
     async def close(self):
         await self.client.aio.aclose()

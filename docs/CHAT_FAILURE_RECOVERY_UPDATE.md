@@ -1,0 +1,27 @@
+# Repeated chat failure — diagnosis and recovery
+
+2026-11-04, Windows/API35 emulator, synthetic Friend account on isolated live test backend port8768.
+
+Observed: earlier committed Gemini replies worked; a later message failed. Failure details showed `This attempt is unresolved`. The existing stable request ID intentionally prevents retry from creating another provider call after a failed/uncertain job. This protects against duplicate writes/charges, but the only visible Try again button made starting an explicitly new attempt hard to discover.
+
+Confirmed external failure: one fresh native attempt also failed; a separate minimal direct Gemini probe returned SDK `ServerError`, HTTP **503**. No raw provider exception, URL, key or credentials were printed. The historical failure's original provider status was not retained, so 503 is evidence of the current outage, not proof of every prior failure. No automatic fallback/model switch or repeated billing retry was introduced.
+
+Fix: moved existing **Edit message** action out of the overflow menu to the failed-message row. It marks the original attempt locally cancelled, restores its text for review and requires Send for a new request ID. The original attempt is preserved. Try again continues checking the same original ID, not silently regenerating. Cancel/Details remain in the menu. Existing English/Japanese labels, ownership guards and archived/expired restrictions are reused.
+
+Files: `outputs/frontend/lib/features/chat.dart`, `outputs/frontend/test/messaging_ux_test.dart`. Regression verifies original cancelled ID remains, the new user turn has another ID, and one reply follows. No backend, prompt or research assignment change.
+
+Checks actually executed: messaging tests **8 passed/1 skipped**, full Flutter suite **211 passed/14 skipped**, analyzer clean, changed-file formatting clean, Android verified compile/package passed. APK SHA256 `F94CE81E92D0CD7966E664265FEB1DB29C72614202CEEA2A246EDD4B34F72CD1`; installed on emulator. New live native attempt did **not** receive a reply; provider outage remains unresolved. Do not claim chat is currently healthy.
+
+User recovery: wait for provider recovery, choose Edit message, review text and press Send once. A failed/pending original request must not be silently assigned a new ID. Account history remains separate and server-committed earlier messages are unaffected. No further live probes were sent after confirming 503. No production deployment was performed.
+
+## Further diagnosis and safe error handling
+
+Following the user's subsequent investigation request, a bounded diagnostic confirmed the configured model lookup succeeds and the generation endpoint is `generativelanguage.googleapis.com`. No Vertex/base-URL/proxy environment overrides were present. A fresh 3.1 Flash Lite generation returned HTTP503, with an allowlisted inspection of its message identifying model capacity/high demand. Browser AI Studio generation succeeded without a project API key selected; its quota table showed peak 2/15 RPM, 3.15K/250K TPM and18/500 RPD over seven days (up to15-minute reporting delay). Browser success does not prove project-key inference works. No billing/keys/permissions were changed.
+
+Confirmed application defect: `GeminiProvider` discarded all failure categories. Added an allowlisted `AIUnavailable.reason` for capacity, quota, access and timeout; no raw exception, URL, key, or prompt is exposed. The API stores the safe error in the existing failed AIJob response and returns a safe code. No schema migration needed. Owned request-status lookup can now explain new failures; old failures remain generic. Replays still cannot regenerate. Flutter renders capacity/quota/access explanations in English/Japanese, with direct Edit message recovery. No automatic retry or fallback was added.
+
+Comparison: a separate diagnostic with `gemini-3.5-flash-lite` and the same server key succeeded. A new isolated test backend on8769 uses that model for a **development-only trial**; permanent `.env`, the port8000 study configuration, existing participant data, and original3.1 condition prompts remain unchanged. Model differences can affect experimental interpretation: results across these models must not be pooled without protocol review. Trial AI records retain actual provider/model provenance. The temporary trial schema is not permanent user enrollment.
+
+Checks after these changes: **102 backend tests passed** against isolated PostgreSQL fixtures, Ruff clean, **212 Flutter tests passed/14 skipped**, analyzer clean. Regression verifies provider exception details do not leak, safe failure metadata survives owned status lookup, and retry does not generate again. Android compile/package succeeded, APK SHA256 `3C2D529D20E0F5E6A9B24F58109609539AA5EE8EC553F9288A9B55E0C387D810`; installed on API35 emulator. Existing Gradle deprecation and Starlette/httpx warnings remain. No iOS/physical notification testing.
+
+Native trial result: Friend-Agent received the typed synthetic message and displayed a live reply suggesting opening a blank document and typing a heading. The user turn showed Saved on server. Owned export confirmed exactly one chat turn/two messages, provider gemini, model gemini-3.5-flash-lite, condition friendAgent. The app remains connected to temporary port8769; the fixture must stay running for this demo. Permanent model3.1 remains unchanged and its availability issue is not claimed fixed. No production deployment was performed.

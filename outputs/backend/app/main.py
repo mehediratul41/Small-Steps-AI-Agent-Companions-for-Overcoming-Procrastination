@@ -382,17 +382,22 @@ def create_app(settings: Settings | None = None, provider=None):
                 )
             try:
                 result = await asyncio.wait_for(work(key), timeout=30)
-            except (AIUnavailable, TimeoutError):
+            except (AIUnavailable, TimeoutError) as error:
+                reason = error.reason if isinstance(error, AIUnavailable) else "timeout"
+                message = {
+                    "capacity": "Gemini is temporarily at capacity. Wait before explicitly starting a new attempt.",
+                    "quota": "Gemini API quota is exhausted. Check the project's limits before starting a new attempt.",
+                    "access": "Gemini API access was rejected. The server operator must check its credentials and permissions.",
+                    "timeout": "Gemini did not respond in time. Check this request before starting a new attempt.",
+                }.get(reason, "AI request did not finish. No task was changed; a provider charge may still apply.")
+                failure = {"code": "ai_" + reason, "message": message}
                 with transaction(factory) as session:
                     job = session.scalar(
                         select(AIJob).where(AIJob.participant_id == p.id, AIJob.request_id == key)
                     )
                     job.status = "failed"
-                fail(
-                    503,
-                    "ai_unavailable",
-                    "AI request did not finish. No task was changed; a provider charge may still apply.",
-                )
+                    job.response = {"error": failure}
+                fail(503, failure["code"], failure["message"])
             except Exception:
                 with transaction(factory) as session:
                     job = session.scalar(

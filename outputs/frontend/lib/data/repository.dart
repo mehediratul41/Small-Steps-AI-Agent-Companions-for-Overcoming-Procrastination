@@ -468,6 +468,12 @@ class ApiResearchRepository implements ResearchRepository {
             };
       final category = code == 'ai_request_unresolved'
           ? 'pending'
+          : code == 'ai_capacity'
+          ? 'capacity'
+          : code == 'ai_quota'
+          ? 'quota'
+          : code == 'ai_access'
+          ? 'provider_access'
           : switch (error.response?.statusCode) {
               401 => 'authentication',
               403 || 404 || 409 || 422 => 'validation',

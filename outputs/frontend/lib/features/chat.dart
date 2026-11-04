@@ -345,6 +345,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String failureText(AppFailure? error) => switch (error?.code) {
+    'capacity' =>
+      context.isJapanese
+          ? 'Geminiは現在混雑しています。時間をおいてから「メッセージを編集」で内容を確認し、新しい試行として送信してください。'
+          : 'Gemini is temporarily at capacity. Wait, then use Edit message to review and send a new attempt.',
+    'quota' =>
+      context.isJapanese
+          ? 'Gemini APIの利用上限に達しました。管理者が利用制限を確認する必要があります。'
+          : 'Gemini API quota was reached. The server operator needs to check the project limits.',
+    'provider_access' =>
+      context.isJapanese
+          ? 'Gemini APIへのアクセスが拒否されました。管理者がサーバーの認証情報と権限を確認する必要があります。'
+          : 'Gemini API access was rejected. The server operator needs to check its credentials and permissions.',
     'network' => context.l10n.msgNetwork,
     'timeout' => context.l10n.msgTimeout,
     'limited' => context.l10n.msgLimited,
@@ -615,6 +627,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   color: Theme.of(context).colorScheme.error,
                                 ),
                               ),
+                              if (failedId == messages[i].id &&
+                                  {
+                                    'capacity',
+                                    'quota',
+                                    'provider_access',
+                                  }.contains(failure?.code))
+                                Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Text(failureText(failure)),
+                                ),
                               TextButton(
                                 onPressed: blocked || archived
                                     ? null
@@ -626,6 +648,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       ),
                                 child: Text(context.l10n.tryAgain_042c86),
                               ),
+                              TextButton(
+                                onPressed: blocked || archived
+                                    ? null
+                                    : () => messageOption('edit', messages[i]),
+                                child: Text(context.l10n.editMessage_96116a),
+                              ),
                               PopupMenuButton<String>(
                                 tooltip: context.l10n.msgMessageOptions,
                                 onSelected: (choice) =>
@@ -634,13 +662,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   PopupMenuItem(
                                     value: 'details',
                                     child: Text(context.l10n.msgDetails),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    enabled: !blocked && !archived,
-                                    child: Text(
-                                      context.l10n.editMessage_96116a,
-                                    ),
                                   ),
                                   PopupMenuItem(
                                     value: 'cancel',
