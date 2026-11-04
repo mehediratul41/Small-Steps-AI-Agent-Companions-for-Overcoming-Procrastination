@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,11 +17,9 @@ class AccountScreen extends ConsumerStatefulWidget {
 
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   final form = GlobalKey<FormState>();
-  final url = TextEditingController(
-    text: kIsWeb ? 'http://127.0.0.1:8000' : AppConfig.baseUrl,
-  );
   final username = TextEditingController();
   final password = TextEditingController();
+  final confirmation = TextEditingController();
   final invitation = TextEditingController();
   bool enroll = false, busy = false, remember = true;
   String? error;
@@ -30,15 +27,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   @override
   void dispose() {
-    for (final field in [url, username, password, invitation]) {
+    for (final field in [username, password, confirmation, invitation]) {
       field.dispose();
     }
     super.dispose();
   }
 
   Future<void> submit() async {
+    if (busy) return;
     if (!form.currentState!.validate()) return;
-    if (!AppConfig.acceptsBackendUrl(url.text)) {
+    if (!AppConfig.acceptsBackendUrl(AppConfig.baseUrl)) {
       setState(
         () => error = copy(
           'Use HTTPS. Local HTTP is for debug builds on this computer or simulator.',
@@ -51,7 +49,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       busy = true;
       error = null;
     });
-    final base = url.text.trim().replaceFirst(RegExp(r'/+$'), '');
+    final base = AppConfig.baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
     final api = ApiResearchRepository(base);
     try {
       final session = await api.authenticateAccount(
@@ -60,6 +58,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         invitation: enroll ? invitation.text.trim() : null,
       );
       password.clear();
+      confirmation.clear();
       invitation.clear();
       await ref
           .read(appProvider.notifier)
@@ -110,6 +109,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               Text(
                 '${copy('Server assignment', 'サーバー側の割り当て')}: ${state.condition.name}',
               ),
+              Text(
+                copy(
+                  'Signing out keeps your saved tasks and conversations. Sign in again with the same account to restore them.',
+                  'ログアウトしても保存済みのタスクや会話は削除されません。同じアカウントで再ログインすると復元されます。',
+                ),
+              ),
               PrimaryButton(
                 copy('Sign out', 'ログアウト'),
                 busy: busy,
@@ -145,18 +150,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 child: Column(
                   children: [
                     TextFormField(
-                      controller: url,
-                      enabled: !busy,
-                      autocorrect: false,
-                      decoration: InputDecoration(
-                        labelText: copy('Backend URL', 'バックエンド URL'),
-                      ),
-                    ),
-                    TextFormField(
                       controller: username,
                       enabled: !busy,
                       autocorrect: false,
                       enableSuggestions: false,
+                      autofillHints: const [AutofillHints.username],
                       decoration: InputDecoration(
                         labelText: copy('Username', 'ユーザー名'),
                       ),
@@ -184,7 +182,21 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           ? null
                           : copy('Use 12–128 characters.', '12～128文字にしてください。'),
                     ),
-                    if (enroll)
+                    if (enroll) ...[
+                      TextFormField(
+                        key: const ValueKey('password-confirmation'),
+                        controller: confirmation,
+                        enabled: !busy,
+                        obscureText: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          labelText: copy('Confirm password', 'パスワードの確認'),
+                        ),
+                        validator: (v) => v == password.text
+                            ? null
+                            : copy('Passwords do not match.', 'パスワードが一致しません。'),
+                      ),
                       TextFormField(
                         controller: invitation,
                         enabled: !busy,
@@ -200,6 +212,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                             ? null
                             : copy('Enter your invitation.', '招待コードを入力してください。'),
                       ),
+                    ],
                     CheckboxListTile(
                       value: remember,
                       onChanged: busy
@@ -215,7 +228,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ),
                     PrimaryButton(
                       enroll
-                          ? copy('Use invitation', '招待コードで登録')
+                          ? copy('Create account', 'アカウントを作成')
                           : copy('Sign in', 'ログイン'),
                       busy: busy,
                       onPressed: busy ? null : submit,
@@ -225,6 +238,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           ? null
                           : () => setState(() {
                               enroll = !enroll;
+                              password.clear();
+                              confirmation.clear();
+                              invitation.clear();
+                              form.currentState?.reset();
                               error = null;
                             }),
                       child: Text(

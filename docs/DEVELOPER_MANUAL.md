@@ -7,6 +7,8 @@ This PC now uses PostgreSQL 18.6, with preserved SQLite records. See [PostgreSQL
 
 ## Invite-only multi-user development accounts
 
+Normal Account now uses `AppConfig.baseUrl` (`API_BASE_URL` at build time); it no longer asks users to configure a server. **Create account** requires password confirmation. Use advanced development settings only for raw-token fixtures. See [returning-login verification and exact limits](PERSISTENT_USER_ACCOUNTS.md); the previous port-8767 DEV-UI demonstration is not permanent enrollment.
+
 See [authentication](AUTHENTICATION.md), [multi-user design](MULTI_USER_DESIGN.md), [database migration](DATABASE_MIGRATIONS.md), and [QA](MULTI_USER_QA_REPORT.md). This is development rehearsal; participant builds remain disabled pending approved study setup.
 
 From `outputs/backend`:

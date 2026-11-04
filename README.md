@@ -14,6 +14,8 @@ PostgreSQL 18.6 is connected to FastAPI on this PC; existing SQLite records were
 
 ## Multi-user accounts
 
+See [persistent accounts and returning-login verification](docs/PERSISTENT_USER_ACCOUNTS.md). Normal sign-in uses the configured backend; enrollment needs an invitation and matching passwords. Signing out preserves server history.
+
 Invite-only username/password accounts are now implemented for development rehearsal. Each user retains a server-assigned condition and separate data. Start with [multi-user setup](docs/DEVELOPER_MANUAL.md), [authentication](docs/AUTHENTICATION.md), [design](docs/MULTI_USER_DESIGN.md), [migration](docs/DATABASE_MIGRATIONS.md), and [test results](docs/MULTI_USER_QA_REPORT.md). Install the updated backend requirements and restart the service before using the new Account screen. This does not enable approved participant-study enrollment.
 
 ## Start locally on Windows
@@ -34,7 +36,7 @@ Set-Location outputs/frontend
 .\.tool-state\android\sdk\platform-tools\adb.exe -s emulator-5554 shell am start -W -n jp.ac.shimane.smallsteps.small_steps/.MainActivity
 ```
 
-The emulator reaches this PC's backend at `http://10.0.2.2:8000`; web on this PC uses `http://127.0.0.1:8000`. Health: `http://127.0.0.1:8000/health`. API explorer: `http://127.0.0.1:8000/docs`. Connect with a **synthetic participant token**, never a Gemini/OpenAI API key. For a first-time build requiring uncached Android dependencies, use `./tool/build-android-verified.ps1 -Online` instead of the offline build wrapper.
+The emulator reaches this PC's backend at `http://10.0.2.2:8000`; web on this PC uses `http://127.0.0.1:8000`. Health: `http://127.0.0.1:8000/health`. API explorer: `http://127.0.0.1:8000/docs`. Normal users use **Account / Sign in** with an invitation-enrolled username/password. Raw synthetic participant tokens belong only in advanced development connection tools; never enter a Gemini/OpenAI key. For a first-time build requiring uncached Android dependencies, use `./tool/build-android-verified.ps1 -Online` instead of the offline build wrapper.
 
 ## iPhone preparation
 

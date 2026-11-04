@@ -4,6 +4,8 @@ Use synthetic identities until deployment and research approval are complete. Ne
 
 ## Enrollment and login
 
+The Account screen uses the configured `API_BASE_URL`, without an editable server/token field. Create account requires matching password confirmation. Sign-out retains server history; returning login verification and device-only limits are documented in [persistent accounts](PERSISTENT_USER_ACCOUNTS.md). Advanced development connection controls are separate.
+
 ```mermaid
 sequenceDiagram
   participant R as Trusted local operator

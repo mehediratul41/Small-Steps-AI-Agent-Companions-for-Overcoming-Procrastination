@@ -165,6 +165,7 @@ void main() {
     await tester.pumpAndSettle();
     container.read(routerProvider).go('/account');
     await tester.pumpAndSettle();
+    expect(find.text('Backend URL'), findsNothing);
     await tester.tap(find.text('Sign in'));
     await tester.pump();
     expect(find.text('Use 12–128 characters.'), findsOneWidget);
@@ -173,6 +174,15 @@ void main() {
     await tester.tap(enroll);
     await tester.pumpAndSettle();
     expect(find.text('Invitation code'), findsOneWidget);
+    expect(find.text('Confirm password'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('password-confirmation')),
+      'different-password',
+    );
+    await tester.ensureVisible(find.text('Create account'));
+    await tester.tap(find.text('Create account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Passwords do not match.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

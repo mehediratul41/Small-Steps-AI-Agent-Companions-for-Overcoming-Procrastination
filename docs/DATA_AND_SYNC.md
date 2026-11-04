@@ -5,6 +5,8 @@ Local deployment update: the active backend store on this PC is PostgreSQL 18.6.
 
 ## Sources of truth
 
+Returning-login verification (2026-11-04): the new synthetic regression signs three users out, recreates the FastAPI app/engine against the same isolated PostgreSQL schema, signs them in again and compares their owned snapshots exactly. This verifies server persistence, not cross-device live-focus/reminder synchronization. `/api/state` currently loads all owned chat records without pagination; bounded Gemini context is a separate concern. See [persistent accounts](PERSISTENT_USER_ACCOUNTS.md).
+
 | Entity | Authoritative location | Device state/cache | Offline and conflict behavior |
 |---|---|---|---|
 | Local demo tasks/chats/profile/check-ins/events | SharedPreferences `small_steps.demo.v1` snapshot | AppState | Fully local scripted demo; no automatic upload to backend |
