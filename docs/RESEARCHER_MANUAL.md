@@ -1,5 +1,14 @@
 # Researcher manual
 
+## Invite-only accounts update
+
+[Multi-user design](MULTI_USER_DESIGN.md) adds authentication for separate synthetic users, not approved study enrollment. Use the [developer invitation commands](DEVELOPER_MANUAL.md) with pseudonymous TEST IDs and an explicitly chosen condition. Never interpret these commands as a randomization protocol. A local trusted server operator issues invitations; there is no web researcher role or unrestricted cross-participant export. Each account exports only its own records.
+
+The account holder chooses a username/password and then separately acknowledges demonstration information. A login is not consent. Invite codes expire after 72 hours and cannot be reused. Password login does not change assignment; standard control stays excluded from AI. Researcher linked DEV switching remains separate, and normal accounts cannot use it. Do not issue real participant invitations until approved consent, instruments, deployment/privacy controls, recovery and retention are established. The participant-build guard remains closed.
+
+Erasure also removes owned login/invitation records, invalidates access and retains a disabled participant tombstone. Backups and device caches are separate retention concerns. There is no verified password-reset email flow. Production data must never be used in automated tests.
+
+
 ## Scope and readiness
 
 This is a working **synthetic-development prototype**, not a cleared participant study. The backend Settings accepts only development mode; `/health` reports `participantEnrollment: false`. Flutter participant builds intentionally stop at study-setup unavailable. There is no participant recruitment, eligibility workflow, approved consent, validated baseline scoring, production login or token refresh.

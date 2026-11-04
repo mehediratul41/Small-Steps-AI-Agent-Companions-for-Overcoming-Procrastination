@@ -276,6 +276,54 @@ void main() {
         );
       },
     );
+    test(
+      'pause today reconciles reminders and resume restores eligible schedule',
+      () async {
+        await controller.setEnabled(true);
+        expect(service.pending, isNotEmpty);
+        await controller.pauseToday();
+        final until = container
+            .read(remindersProvider)
+            .preferences
+            .pausedUntil!;
+        final now = DateTime.now();
+        expect(until, DateTime(now.year, now.month, now.day + 1));
+        // Future-day slots remain valid; only slots before pause expiry are suppressed.
+        expect(
+          service.pending.every((r) => !r.scheduledAt.isBefore(until)),
+          isTrue,
+        );
+        await controller.pauseToday(resume: true);
+        expect(
+          container.read(remindersProvider).preferences.pausedUntil,
+          isNull,
+        );
+        expect(service.pending, isNotEmpty);
+      },
+    );
+    test('Tokyo pause suppresses today without replaying it tomorrow', () {
+      final zone = tz.getLocation('Asia/Tokyo');
+      final now = tz.TZDateTime(zone, 2026, 11, 2, 12);
+      final until = tz.TZDateTime(zone, 2026, 11, 3);
+      final plan = planReminders(
+        [
+          Task(
+            id: 'today',
+            title: 'Today',
+            reminder: tz.TZDateTime(zone, 2026, 11, 2, 13),
+          ),
+          Task(
+            id: 'tomorrow',
+            title: 'Tomorrow',
+            reminder: tz.TZDateTime(zone, 2026, 11, 3, 13),
+          ),
+        ],
+        ReminderPreferences(enabled: true, pausedUntil: until),
+        zone,
+        now,
+      );
+      expect(plan.map((r) => r.taskId), ['tomorrow']);
+    });
     test('permission denial is visible and queues nothing', () async {
       service.allowRequest = false;
       await controller.setEnabled(true);

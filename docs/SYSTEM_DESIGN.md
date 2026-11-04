@@ -1,6 +1,9 @@
 # System design
 
-Verified against the implementation on 2026-11-02. Read [data and sync](DATA_AND_SYNC.md) for failure semantics and [QA](QA_AND_INTEGRATION_REPORT.md) for verification limits.
+Local database update: this PC now runs PostgreSQL 18.6 behind the same FastAPI API. The earlier SQLite deployment diagram below is retained as the original development arrangement; the current deployment and migration evidence are in [PostgreSQL setup](POSTGRESQL_SETUP.md).
+
+
+Verified against the implementation on 2026-11-02. The [multi-user extension](MULTI_USER_DESIGN.md) adds invite-only development login, identity tables and secure ordinary sessions; read it alongside the legacy domain diagrams below. Approved participant enrollment remains unavailable. Read [data and sync](DATA_AND_SYNC.md) for failure semantics and [QA](QA_AND_INTEGRATION_REPORT.md) for verification limits.
 
 ## Purpose and conditions
 

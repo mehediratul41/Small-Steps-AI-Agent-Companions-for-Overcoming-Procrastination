@@ -89,3 +89,25 @@ CheckIn includes stable ID, `phase` baseline/daily/before/during/after, language
 | 500 | Unexpected failure | Generic bounded feedback; diagnose with synthetic reproduction |
 
 Some Dio messages intentionally summarize these statuses rather than surfacing raw server/provider details. Provider/model IDs are configuration, not evidence of live generation; distinguish provider mock from Gemini and actual request success.
+
+
+## Invite-only account endpoints (revision 2)
+
+These routes precede research acknowledgement and do not accept participant IDs, roles or conditions.
+
+| Method/path | Body and result | Authorization |
+|---|---|---|
+| POST `/api/auth/enroll` | `{username, password, invitation}` → 201 `{token, token_type: "bearer", expires_at, participant_id, condition}` | Valid unused unexpired researcher-issued invitation; enrollment flag enabled |
+| POST `/api/auth/login` | `{username, password}` → same session receipt | Argon2 verification and active participant |
+| POST `/api/auth/logout` | No body → `{signed_out: true}` | Current bearer token; revoked immediately |
+
+Username is normalized lowercase (3–64 ASCII letters/digits/dot/underscore/hyphen). Password 12–128 characters. Invitation 20–200 characters. Extra fields rejected (422). `expires_at` is Unix seconds UTC, not a formatted date. Store the token only in secure mobile storage or web memory; never passwords. Login and enrollment replace the participant's current token hash. Exactly one active bearer session exists per account; login after expiry renews it while the participant is active. No refresh endpoint exists.
+
+Login failure: 401 `invalid_credentials`, same message for missing, disabled or incorrect password. Enrollment failure: 400 `enrollment_failed`; duplicate concurrent database writes may produce existing 409 conflict response. Reused/expired codes do not create another account. Disabled redemption: 403 `enrollment_disabled`. Ten attempts per normalized name or 30 per peer in ten minutes: 429 `auth_rate_limited`; development in-memory limiter resets on process restart. Enrollment does not imply consent. Existing `/participants/onboarding` is still required before tasks/state/AI.
+
+Lost enrollment response: try password sign-in instead of reusing the code automatically. Login response loss: sign in again to replace the unknown session; token issuance is not idempotent. Logout response loss: repeating the old token can return 401 because revocation already succeeded. No other participant's ID is accepted for export/deletion. Health now reports `invitationAccounts` separately from `participantEnrollment` (still false).
+
+
+## Optional development support feedback (2026-11-02)
+
+No new route: existing authenticated `POST /api/events` transports `support_feedback_offered`, `support_feedback_answered`, `support_feedback_skipped`. Existing event ownership, ID replay/conflict rules, timestamp/condition checks and export scope apply. `details` stores `instrumentVersion: dev-support-feedback-v1`, `source`, `sessionId`, offer `cooldownHours`, decision `offerId` and `choice` (`smaller_step`, `clear_plan`, `encouragement`, `quiet_time`, `skip`). These are client-reported observations, not verified efficacy/delivery. Feature availability is disabled by default and gated off in participant Flutter builds; generic server event acceptance is not a protocol-approval gate. See [UX scope and instrument](UX_IMPROVEMENTS.md).

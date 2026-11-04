@@ -3095,7 +3095,7 @@ abstract class AppLocalizations {
   /// No description provided for @useALocalhostEmulatorHttpAddress_92a22a.
   ///
   /// In en, this message translates to:
-  /// **'Use a localhost/emulator HTTP address or an HTTPS backend URL.'**
+  /// **'Use HTTPS. Local HTTP is available only in debug builds on the matching simulator or computer.'**
   String get useALocalhostEmulatorHttpAddress_92a22a;
 
   /// No description provided for @useAssignedAgentWording_104d77.
@@ -3925,6 +3925,396 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DEV- accounts only. Android/iOS use secure device storage. Browser previews remember only for this session.'**
   String get rememberAgentHint;
+
+  /// No description provided for @uxStartFive.
+  ///
+  /// In en, this message translates to:
+  /// **'Start 5 minutes'**
+  String get uxStartFive;
+
+  /// No description provided for @uxChooseDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose duration'**
+  String get uxChooseDuration;
+
+  /// No description provided for @uxResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume session'**
+  String get uxResume;
+
+  /// No description provided for @uxRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Make smaller · Reschedule · Pause'**
+  String get uxRecovery;
+
+  /// No description provided for @uxChatInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'About this conversation'**
+  String get uxChatInfo;
+
+  /// No description provided for @uxMoreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get uxMoreActions;
+
+  /// No description provided for @uxFewerActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer actions'**
+  String get uxFewerActions;
+
+  /// No description provided for @uxNewReply.
+  ///
+  /// In en, this message translates to:
+  /// **'New reply · Show latest'**
+  String get uxNewReply;
+
+  /// No description provided for @uxSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get uxSending;
+
+  /// No description provided for @uxWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for reply…'**
+  String get uxWaiting;
+
+  /// No description provided for @uxServerSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on server'**
+  String get uxServerSaved;
+
+  /// No description provided for @uxLocalSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept in local demo'**
+  String get uxLocalSaved;
+
+  /// No description provided for @uxExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an editable example'**
+  String get uxExample;
+
+  /// No description provided for @uxExampleCue.
+  ///
+  /// In en, this message translates to:
+  /// **'After lunch'**
+  String get uxExampleCue;
+
+  /// No description provided for @uxExampleAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open one paper and read its abstract'**
+  String get uxExampleAction;
+
+  /// No description provided for @uxDraftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft only. Save to apply; text cues do not schedule reminders.'**
+  String get uxDraftHint;
+
+  /// No description provided for @uxReviewStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Review one smaller step'**
+  String get uxReviewStep;
+
+  /// No description provided for @uxRoughDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a rough first attempt'**
+  String get uxRoughDraft;
+
+  /// No description provided for @uxDistraction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose one distraction to put aside'**
+  String get uxDistraction;
+
+  /// No description provided for @uxDraftAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Make a rough first attempt at: '**
+  String get uxDraftAction;
+
+  /// No description provided for @uxDistractionAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Put one distraction aside, then begin: '**
+  String get uxDistractionAction;
+
+  /// No description provided for @uxSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get uxSkip;
+
+  /// No description provided for @uxFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'What helped?'**
+  String get uxFeedback;
+
+  /// No description provided for @uxFeedbackHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional development feedback. No score or effectiveness claim.'**
+  String get uxFeedbackHint;
+
+  /// No description provided for @uxSmallerStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller step'**
+  String get uxSmallerStep;
+
+  /// No description provided for @uxClearPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear plan'**
+  String get uxClearPlan;
+
+  /// No description provided for @uxEncouragement.
+  ///
+  /// In en, this message translates to:
+  /// **'Encouragement'**
+  String get uxEncouragement;
+
+  /// No description provided for @uxQuietTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet time'**
+  String get uxQuietTime;
+
+  /// No description provided for @uxFeedbackLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Last time, you selected:'**
+  String get uxFeedbackLast;
+
+  /// No description provided for @uxFeedbackStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your selection is recorded locally; connected reports synchronize with the server.'**
+  String get uxFeedbackStorage;
+
+  /// No description provided for @uxLessSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Less support today'**
+  String get uxLessSupport;
+
+  /// No description provided for @uxPauseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause all task reminders until tomorrow?'**
+  String get uxPauseAll;
+
+  /// No description provided for @uxPauseAllHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This pauses all Small Steps task reminders until the next local day, including scheduled start and deadline reminders. Suppressed reminders are not replayed. You can resume in notification settings.'**
+  String get uxPauseAllHint;
+
+  /// No description provided for @uxFeedbackError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not record feedback. Try again.'**
+  String get uxFeedbackError;
+
+  /// No description provided for @connectionRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved connection unavailable. Retry, or sign in again. Chat is paused; previous demo messages are not live replies.'**
+  String get connectionRestoreFailed;
+
+  /// No description provided for @retryConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry connection'**
+  String get retryConnection;
+
+  /// No description provided for @reconnectAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in again'**
+  String get reconnectAccount;
+
+  /// No description provided for @savedConnectionLegacyError.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved AI connection unavailable. Reconnect the backend before chatting.'**
+  String get savedConnectionLegacyError;
+
+  /// No description provided for @sessionExpiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Small Steps · Sign-in required'**
+  String get sessionExpiredTitle;
+
+  /// No description provided for @sessionExpiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session expired or was revoked. Sign in again; retrying the message cannot renew it.'**
+  String get sessionExpiredMessage;
+
+  /// No description provided for @msgConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get msgConnected;
+
+  /// No description provided for @msgDemo.
+  ///
+  /// In en, this message translates to:
+  /// **'Scripted demo'**
+  String get msgDemo;
+
+  /// No description provided for @msgUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection unavailable'**
+  String get msgUnavailable;
+
+  /// No description provided for @msgConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get msgConversations;
+
+  /// No description provided for @msgSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search loaded conversations'**
+  String get msgSearch;
+
+  /// No description provided for @msgSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search covers loaded titles and messages on this account and agent only.'**
+  String get msgSearchHint;
+
+  /// No description provided for @msgNoMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get msgNoMessages;
+
+  /// No description provided for @msgNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching conversations'**
+  String get msgNoResults;
+
+  /// No description provided for @msgStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation'**
+  String get msgStart;
+
+  /// No description provided for @msgStartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a message, or choose a task to discuss.'**
+  String get msgStartHint;
+
+  /// No description provided for @msgCouldNotSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t send'**
+  String get msgCouldNotSend;
+
+  /// No description provided for @msgMessageOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Message options'**
+  String get msgMessageOptions;
+
+  /// No description provided for @msgDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Failure details'**
+  String get msgDetails;
+
+  /// No description provided for @msgNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection problem. Your message is kept for retry.'**
+  String get msgNetwork;
+
+  /// No description provided for @msgTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The request timed out. Check its status by retrying the same message.'**
+  String get msgTimeout;
+
+  /// No description provided for @msgLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'The service is busy or rate-limited. Wait before retrying.'**
+  String get msgLimited;
+
+  /// No description provided for @msgProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'AI or study service unavailable. Try later; no task changes were applied.'**
+  String get msgProvider;
+
+  /// No description provided for @msgPending.
+  ///
+  /// In en, this message translates to:
+  /// **'This attempt is unresolved. Retry checks the same request; cancel before explicitly making a new attempt.'**
+  String get msgPending;
+
+  /// No description provided for @msgMalformed.
+  ///
+  /// In en, this message translates to:
+  /// **'The service returned an unexpected response. Your message is retained.'**
+  String get msgMalformed;
+
+  /// No description provided for @msgCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy message'**
+  String get msgCopy;
+
+  /// No description provided for @msgCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Message copied'**
+  String get msgCopied;
+
+  /// No description provided for @msgCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry cancelled · message retained'**
+  String get msgCancelled;
+
+  /// No description provided for @msgDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get msgDraft;
+
+  /// No description provided for @msgSignInRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in required'**
+  String get msgSignInRequired;
+
+  /// No description provided for @msgTaskSupportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Task-based suggestion · review before changing.'**
+  String get msgTaskSupportSource;
 }
 
 class _AppLocalizationsDelegate

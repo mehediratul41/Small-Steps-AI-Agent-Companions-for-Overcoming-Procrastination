@@ -32,6 +32,12 @@ The optional difficulty choices offer a brief practical suggestion. You can skip
 
 ## Agent conversations and suggestions
 
+Tap the compact task/context row for **Conversations**. Search covers only loaded titles/messages for the active account and agent. General and task histories remain separate. The header information icon contains mode/privacy details and Settings.
+
+Unsent drafts survive navigation and permitted agent switching while the app stays running; restarting clears composer drafts. Failed submitted attempts remain in the existing account cache. **Message options** contains failure details, edit and cancel; committed history is not edited. Long-press a bubble to copy its exact text. A delayed reply does not move you away from older messages; use **Show latest** when ready.
+
+The task suggestion card initially shows its title/task and review controls; expand it for the existing explanation. Review opens the existing confirmation/editor, not an automatic task change.
+
 Open Chat, check the active agent and select a task context or General conversation. Send your message; a pending state prevents duplicate taps. A failed message has retry/cancel controls. Retrying uses its original request and language, not a new billable attempt by default. If the server reports an unresolved attempt, inspect/reconnect or explicitly cancel before sending a new attempt.
 
 In linked researcher mode, tap Self-Agent or Friend-Agent once to open that account. **Tasks and histories are separate**. Control and ordinary unlinked assignments remain restricted. Finish active focus sessions and in-flight requests before switching.

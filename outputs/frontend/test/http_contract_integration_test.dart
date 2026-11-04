@@ -7,6 +7,52 @@ import 'package:small_steps/data/repository.dart';
 /// Run only against backend/tool/http_fixture.py (temporary DB + mock provider).
 void main() {
   for (final condition in StudyCondition.values) {
+    test('invite account HTTP ${condition.name}', () async {
+      final fixture =
+          jsonDecode(
+                await File(
+                  '../backend/.tmp/http-fixture-accounts.json',
+                ).readAsString(),
+              )
+              as Map;
+      final auth = ApiResearchRepository('http://127.0.0.1:8766');
+      addTearDown(auth.close);
+      final username = 'http-${condition.name}';
+      const password = 'synthetic-http-passphrase!';
+      final session = await auth.authenticateAccount(
+        username: username,
+        password: password,
+        invitation: (fixture['invitations'] as Map)[condition.name] as String,
+      );
+      final first = ApiResearchRepository(
+        'http://127.0.0.1:8766',
+        token: session['token'] as String,
+      );
+      addTearDown(first.close);
+      expect((await first.participant()).condition, condition);
+      expect(first.assignment['onboarded'], false);
+      await first.onboard({
+        'acknowledged': true,
+        'demonstration': true,
+        'consent_version': first.assignment['consentVersion'],
+      });
+      await first.createTask(
+        Task(id: 'account-task', title: 'Owned by $username'),
+      );
+      final next = await auth.authenticateAccount(
+        username: username,
+        password: password,
+      );
+      final second = ApiResearchRepository(
+        'http://127.0.0.1:8766',
+        token: next['token'] as String,
+      );
+      addTearDown(second.close);
+      await expectLater(first.participant(), throwsA(isA<AppFailure>()));
+      expect((await second.tasks()).single.title, 'Owned by $username');
+      await second.signOutAccount();
+      await expectLater(second.participant(), throwsA(isA<AppFailure>()));
+    }, skip: !const bool.fromEnvironment('RUN_HTTP_INTEGRATION'));
     test('real HTTP contract ${condition.name}', () async {
       final tokens =
           jsonDecode(

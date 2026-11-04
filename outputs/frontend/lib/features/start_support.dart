@@ -32,7 +32,7 @@ class StartSupportPanel extends ConsumerWidget {
           OutlinedButton.icon(
             icon: const Icon(Icons.edit_calendar_outlined),
             label: Text(l.saveSupport),
-            onPressed: () => showStartSupport(context, task),
+            onPressed: () => showStartSupport(context, ref, task),
           ),
           TextButton(
             onPressed: () => showSubtaskEditor(context, ref, task),
@@ -65,13 +65,24 @@ class StartSupportPanel extends ConsumerWidget {
   }
 }
 
-Future<void> showStartSupport(BuildContext context, Task task) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _StartSupportEditor(task: task),
-    );
+Future<void> showStartSupport(
+  BuildContext context,
+  WidgetRef ref,
+  Task task,
+) async {
+  final selected = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => _StartSupportEditor(task: task),
+  );
+  if (!context.mounted) return;
+  if (selected == 'smaller') {
+    await showSubtaskEditor(context, ref, task);
+  } else if (selected == 'duration') {
+    await showFocusSheet(context, ref, task);
+  }
+}
 
 class _StartSupportEditor extends ConsumerStatefulWidget {
   final Task task;
@@ -86,7 +97,7 @@ class _StartSupportEditorState extends ConsumerState<_StartSupportEditor> {
   late final action = TextEditingController(text: widget.task.startAction);
   late final future = TextEditingController(text: widget.task.futureNote);
   late String difficulty = widget.task.difficulty;
-  bool saving = false;
+  bool saving = false, adviceDismissed = false;
   String? error;
 
   @override
@@ -176,6 +187,16 @@ class _StartSupportEditorState extends ConsumerState<_StartSupportEditor> {
             Text(widget.task.title),
             const SizedBox(height: 12),
             Text(l.supportPlanHint),
+            Text(l.uxDraftHint, style: Theme.of(context).textTheme.bodySmall),
+            TextButton(
+              onPressed: saving
+                  ? null
+                  : () => setState(() {
+                      cue.text = l.uxExampleCue;
+                      action.text = l.uxExampleAction;
+                    }),
+              child: Text(l.uxExample),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: cue,
@@ -203,16 +224,54 @@ class _StartSupportEditorState extends ConsumerState<_StartSupportEditor> {
                     selected: difficulty == entry.key,
                     onSelected: saving
                         ? null
-                        : (selected) => setState(
-                            () => difficulty = selected ? entry.key : '',
-                          ),
+                        : (selected) => setState(() {
+                            difficulty = selected ? entry.key : '';
+                            adviceDismissed = false;
+                          }),
                   ),
               ],
             ),
-            if (advice[difficulty] != null)
+            if (!adviceDismissed && advice[difficulty] != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(advice[difficulty]!),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(advice[difficulty]!),
+                    TextButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (difficulty == 'unclear' ||
+                                  difficulty == 'overwhelming') {
+                                Navigator.pop(context, 'smaller');
+                              } else if (difficulty == 'tired') {
+                                Navigator.pop(context, 'duration');
+                              } else {
+                                setState(
+                                  () => action.text =
+                                      (difficulty == 'worried'
+                                          ? l.uxDraftAction
+                                          : l.uxDistractionAction) +
+                                      widget.task.title,
+                                );
+                              }
+                            },
+                      child: Text(switch (difficulty) {
+                        'worried' => l.uxRoughDraft,
+                        'distracted' => l.uxDistraction,
+                        'tired' => l.uxChooseDuration,
+                        _ => l.uxReviewStep,
+                      }),
+                    ),
+                    TextButton(
+                      onPressed: saving
+                          ? null
+                          : () => setState(() => adviceDismissed = true),
+                      child: Text(l.uxSkip),
+                    ),
+                  ],
+                ),
               ),
             if (self) ...[
               Text(l.futureNoteHint),

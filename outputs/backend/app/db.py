@@ -2,7 +2,17 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import JSON, Boolean, Float, Integer, String, UniqueConstraint, create_engine, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    create_engine,
+    event,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -64,6 +74,29 @@ class AIJob(Base):
     response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
+class LoginAccount(Base):
+    __tablename__ = "login_accounts"
+    username: Mapped[str] = mapped_column(String(64), primary_key=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("participants.id"), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[str] = mapped_column(String(50), default=now_iso)
+
+
+class Invitation(Base):
+    __tablename__ = "account_invitations"
+    code_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("participants.id"), unique=True)
+    expires_at: Mapped[float] = mapped_column(Float)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[str] = mapped_column(String(50), default=now_iso)
+
+
+class SchemaRevision(Base):
+    __tablename__ = "schema_revisions"
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    applied_at: Mapped[str] = mapped_column(String(50), default=now_iso)
+
+
 def database(url: str):
     if url.startswith("sqlite:///./"):
         Path(url.removeprefix("sqlite:///./")).parent.mkdir(parents=True, exist_ok=True)
@@ -79,9 +112,15 @@ def database(url: str):
         @event.listens_for(engine, "connect")
         def sqlite_settings(connection, _):
             connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA foreign_keys=ON")
 
     Base.metadata.create_all(engine)
-    return engine, sessionmaker(engine, expire_on_commit=False)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    # Additive revision 2: create missing identity tables; never replace legacy data.
+    with transaction(factory) as session:
+        if not session.get(SchemaRevision, 2):
+            session.add(SchemaRevision(version=2))
+    return engine, factory
 
 
 @contextmanager

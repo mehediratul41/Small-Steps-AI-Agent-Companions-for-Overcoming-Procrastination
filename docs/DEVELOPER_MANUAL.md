@@ -1,5 +1,35 @@
 # Developer manual
 
+## Active database
+
+This PC now uses PostgreSQL 18.6, with preserved SQLite records. See [PostgreSQL setup and verification](POSTGRESQL_SETUP.md) for connection locations, tests, backups and safe recovery. Previous SQLite-default descriptions below describe the fallback/default template, not the current private `.env`.
+
+
+## Invite-only multi-user development accounts
+
+See [authentication](AUTHENTICATION.md), [multi-user design](MULTI_USER_DESIGN.md), [database migration](DATABASE_MIGRATIONS.md), and [QA](MULTI_USER_QA_REPORT.md). This is development rehearsal; participant builds remain disabled pending approved study setup.
+
+From `outputs/backend`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
+# Stop the server and back up the private development database first.
+.\.venv\Scripts\python.exe -m app.migrate
+.\.venv\Scripts\python.exe -m app.admin invite --id TEST-SELF-A --condition selfAgent --token-file private-invitation-a.json
+.\.venv\Scripts\python.exe -m app.admin invite --id TEST-FRIEND-B --condition friendAgent --token-file private-invitation-b.json
+.\.venv\Scripts\python.exe -m app.admin invite --id TEST-CONTROL-C --condition standardControl --token-file private-invitation-c.json
+.\RUN-BACKEND.cmd
+```
+
+The CLI creates NEW participants and writes each code once to a new ignored file; it refuses an existing ID or output file. Share codes privately, never commit them or paste them into chat. Invitations expire in 72 hours. Choose synthetic usernames such as `test-alpha` and `test-bravo` and separate 12–128-character passwords on the app's **Welcome → Sign in / Use invitation** or **Settings → Account / Sign in** screen. Do not reuse an actual personal password for rehearsal. No condition selector is offered. After authentication, explicitly acknowledge the existing demonstration information.
+
+Use `http://10.0.2.2:8000` from Android emulator and `http://127.0.0.1:8000` on local web. Use HTTPS outside local development; never expose the current development service directly to the internet. Sign out before the second user signs in. Check that tasks/history change, restart to test remembered login, and verify completed work remains with the original account. Login rotates the session token, so a second login signs out the previous device. There is no refresh-token or password-reset email flow.
+
+`ACCOUNT_ENROLLMENT=false` disables new invitation redemption; existing password login remains available. Local `app.admin revoke --id ...` disables access, and `rotate` invalidates a token without changing assignment. There is no public admin API. To rerun isolated HTTP account tests, restart `tool/http_fixture.py` to get fresh invitations, then use the opt-in HTTP command below. Database/credentials are temporary; AI is mocked.
+
+Passwords are never saved; mobile remembered tokens use secure storage, web memory only. A successful sign-out revokes the server token. Offline sign-out warns about unconfirmed server revocation. Stop ongoing requests/focus before signing out. Connected operations require the backend; no general offline mutation merge is implemented.
+
+
 ## Isolated HTTP contract rehearsal
 
 From `outputs/backend`, run `./.venv/Scripts/python.exe tool/http_fixture.py` in a separate terminal. This starts a temporary mock-AI FastAPI service on port 8766 and creates ignored synthetic credentials; it does not load `.env` or use the existing database. From `outputs/frontend`, with the Windows helper environment described below, run `./tool/flutter.ps1 test --no-pub test/http_contract_integration_test.dart --dart-define=RUN_HTTP_INTEGRATION=true`. The three conditions exercise real Dart/Dio/HTTP/database contracts. Stop the fixture with Ctrl+C to remove its temporary credentials and database. By default these opt-in tests skip when the fixture is absent. These are not live Gemini evaluations.
@@ -124,7 +154,7 @@ Tests create synthetic temporary databases and fake providers. The optional live
 
 ## Database changes
 
-SQLAlchemy uses four tables with JSON payloads. `create_all` is not a migration system. Back up development data before schema work; do not delete a database as a routine repair. New optional JSON fields need defaults and semantic comparisons for legacy rows. The refinement compatibility regression covers that case. PostgreSQL concurrency, migrations, backup/restore and production retention require separate work.
+Legacy domain data uses four tables with JSON payloads. Additive revision 2 adds login, invitation and schema-revision tables; see [migration procedures](DATABASE_MIGRATIONS.md). `create_all` alone cannot alter existing columns. Back up development data before schema work; do not delete a database as a routine repair. New optional JSON fields need defaults and semantic comparisons for legacy rows. The refinement compatibility regression covers that case. PostgreSQL concurrency, migrations, backup/restore and production retention require separate work.
 
 ## Make a safe change
 

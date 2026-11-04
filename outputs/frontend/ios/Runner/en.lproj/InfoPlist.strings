@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "Small Steps";
+"NSLocalNetworkUsageDescription" = "Connect to your development backend on the local network. Research builds use HTTPS.";

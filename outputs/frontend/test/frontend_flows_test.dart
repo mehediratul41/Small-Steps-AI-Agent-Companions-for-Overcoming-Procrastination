@@ -124,13 +124,17 @@ void main() {
     await tester.pumpAndSettle();
     (c.read(repositoryProvider) as MockResearchRepository).failNext = true;
     await tester.enterText(find.byType(TextField), 'First attempt');
+    await tester.pump();
     await tester.tap(find.byTooltip('Send message'));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Cancel retry'));
+    await tester.ensureVisible(find.byTooltip('Message options'));
+    await tester.tap(find.byTooltip('Message options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel retry'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Let us try something else');
+    await tester.pump();
     await tester.tap(find.byTooltip('Send message'));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();

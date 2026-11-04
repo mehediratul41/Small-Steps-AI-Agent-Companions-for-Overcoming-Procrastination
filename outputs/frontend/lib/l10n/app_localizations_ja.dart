@@ -1681,7 +1681,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get useALocalhostEmulatorHttpAddress_92a22a =>
-      'localhost・エミュレーター用のHTTPアドレス、またはHTTPSのサーバーURLを使ってください。';
+      'HTTPSを使用してください。ローカルHTTPは、対応するシミュレーターまたは開発用PCのデバッグビルドでのみ利用できます。';
 
   @override
   String get useAssignedAgentWording_104d77 => '割り当てられたエージェントの文章を使う';
@@ -2155,4 +2155,205 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get rememberAgentHint =>
       'DEV-アカウントのみ。Android/iOSは端末の安全な保存領域を使用します。ブラウザではこのセッション中のみ保持します。';
+
+  @override
+  String get uxStartFive => '5分だけ始める';
+
+  @override
+  String get uxChooseDuration => '時間を選ぶ';
+
+  @override
+  String get uxResume => 'セッションに戻る';
+
+  @override
+  String get uxRecovery => '小さくする・予定変更・一時停止';
+
+  @override
+  String get uxChatInfo => 'この会話について';
+
+  @override
+  String get uxMoreActions => 'その他の操作';
+
+  @override
+  String get uxFewerActions => '操作を閉じる';
+
+  @override
+  String get uxNewReply => '新しい返信・最新を表示';
+
+  @override
+  String get uxSending => '送信中…';
+
+  @override
+  String get uxWaiting => '返信を待っています…';
+
+  @override
+  String get uxServerSaved => 'サーバーに保存済み';
+
+  @override
+  String get uxLocalSaved => 'ローカルデモ内に保存';
+
+  @override
+  String get uxExample => '編集できる例を使う';
+
+  @override
+  String get uxExampleCue => '昼食の後';
+
+  @override
+  String get uxExampleAction => '論文を1本開き、要旨を読む';
+
+  @override
+  String get uxDraftHint => '下書きです。保存するまで反映されません。文章のきっかけだけでは通知は予約されません。';
+
+  @override
+  String get uxReviewStep => '小さな一歩を見直す';
+
+  @override
+  String get uxRoughDraft => 'まずは下書きから試す';
+
+  @override
+  String get uxDistraction => '気をそらすものを1つ遠ざける';
+
+  @override
+  String get uxDraftAction => 'まずは下書きから試す：';
+
+  @override
+  String get uxDistractionAction => '気をそらすものを1つ遠ざけてから始める：';
+
+  @override
+  String get uxSkip => 'スキップ';
+
+  @override
+  String get uxFeedback => '何が役立ちましたか？';
+
+  @override
+  String get uxFeedbackHint => '任意の開発用フィードバックです。得点化や効果の判断はしません。';
+
+  @override
+  String get uxSmallerStep => '小さな一歩';
+
+  @override
+  String get uxClearPlan => '具体的な計画';
+
+  @override
+  String get uxEncouragement => '励まし';
+
+  @override
+  String get uxQuietTime => '静かな時間';
+
+  @override
+  String get uxFeedbackLast => '前回選んだ項目：';
+
+  @override
+  String get uxFeedbackStorage => '選択は端末に記録され、接続中のレポートはサーバーと同期されます。';
+
+  @override
+  String get uxLessSupport => '今日は通知を控える';
+
+  @override
+  String get uxPauseAll => '明日までタスクの通知をすべて止めますか？';
+
+  @override
+  String get uxPauseAllHint =>
+      '次の現地日付になるまで、開始予定や締切を含むSmall Stepsのタスク通知をすべて停止します。停止中の通知は後からまとめて送られません。通知設定で再開できます。';
+
+  @override
+  String get uxFeedbackError => 'フィードバックを記録できませんでした。もう一度お試しください。';
+
+  @override
+  String get connectionRestoreFailed =>
+      '保存した接続を復元できません。再試行するか、再度ログインしてください。チャットは停止中です。以前のデモメッセージは実際のAIの返信ではありません。';
+
+  @override
+  String get retryConnection => '接続を再試行';
+
+  @override
+  String get reconnectAccount => '再度ログイン';
+
+  @override
+  String get savedConnectionLegacyError =>
+      '保存した接続を復元できません。接続を再試行するか、再度ログインしてください。';
+
+  @override
+  String get sessionExpiredTitle => 'Small Steps・再ログインが必要です';
+
+  @override
+  String get sessionExpiredMessage =>
+      'セッションの有効期限が切れたか、無効になりました。再度ログインしてください。メッセージの再試行では更新されません。';
+
+  @override
+  String get msgConnected => '接続済み';
+
+  @override
+  String get msgDemo => 'スクリプトによるデモ';
+
+  @override
+  String get msgUnavailable => '接続できません';
+
+  @override
+  String get msgConversations => '会話一覧';
+
+  @override
+  String get msgSearch => '読み込み済みの会話を検索';
+
+  @override
+  String get msgSearchHint => '検索対象は、このアカウントとエージェントで読み込み済みのタイトルとメッセージのみです。';
+
+  @override
+  String get msgNoMessages => 'メッセージはまだありません';
+
+  @override
+  String get msgNoResults => '一致する会話がありません';
+
+  @override
+  String get msgStart => '会話を始める';
+
+  @override
+  String get msgStartHint => 'メッセージを書くか、相談したいタスクを選んでください。';
+
+  @override
+  String get msgCouldNotSend => '送信できませんでした';
+
+  @override
+  String get msgMessageOptions => 'メッセージの操作';
+
+  @override
+  String get msgDetails => 'エラーの詳細';
+
+  @override
+  String get msgNetwork => '接続に問題があります。再試行のためにメッセージを保持しています。';
+
+  @override
+  String get msgTimeout => '要求がタイムアウトしました。同じメッセージを再試行して状態を確認できます。';
+
+  @override
+  String get msgLimited => 'サービスが混雑しているか、利用回数の制限に達しています。時間を置いて再試行してください。';
+
+  @override
+  String get msgProvider =>
+      'AIまたは研究用サービスを利用できません。時間を置いて再試行してください。タスクは変更されていません。';
+
+  @override
+  String get msgPending =>
+      'この要求の結果は未確定です。再試行では同じ要求を確認します。新たに送信する場合は、先に再試行を取り消してください。';
+
+  @override
+  String get msgMalformed => 'サービスの応答を読み取れませんでした。メッセージは保持されています。';
+
+  @override
+  String get msgCopy => 'メッセージをコピー';
+
+  @override
+  String get msgCopied => 'メッセージをコピーしました';
+
+  @override
+  String get msgCancelled => '再試行を取り消しました・メッセージは保持されています';
+
+  @override
+  String get msgDraft => '下書き';
+
+  @override
+  String get msgSignInRequired => '再ログインが必要です';
+
+  @override
+  String get msgTaskSupportSource => 'タスク情報に基づく提案です。変更前に確認できます。';
 }

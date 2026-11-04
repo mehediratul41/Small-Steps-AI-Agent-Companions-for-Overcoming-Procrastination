@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi.testclient import TestClient
+from postgres_support import test_database_url as isolated_database
 from pydantic import ValidationError
 
 from app.admin import provision
@@ -28,15 +29,16 @@ class SpyProvider(MockProvider):
 
 @pytest.fixture
 def api(tmp_path):
-    settings = Settings(_env_file=None, database_url=f"sqlite:///{tmp_path / 'test.db'}")
-    provider = SpyProvider()
-    app = create_app(settings, provider)
-    with TestClient(app) as client:
-        tokens = {}
-        for index, condition in enumerate(("selfAgent", "friendAgent", "standardControl")):
-            token = provision(app.state.factory, settings, f"p{index}", condition)
-            tokens[condition] = {"Authorization": f"Bearer {token}"}
-        yield client, app, provider, tokens
+    with isolated_database(f"sqlite:///{tmp_path / 'test.db'}") as url:
+        settings = Settings(_env_file=None, database_url=url)
+        provider = SpyProvider()
+        app = create_app(settings, provider)
+        with TestClient(app) as client:
+            tokens = {}
+            for index, condition in enumerate(("selfAgent", "friendAgent", "standardControl")):
+                token = provision(app.state.factory, settings, f"p{index}", condition)
+                tokens[condition] = {"Authorization": f"Bearer {token}"}
+            yield client, app, provider, tokens
 
 
 def enroll(client, headers):
@@ -426,3 +428,33 @@ def test_state_snapshot_is_owned_and_control_has_no_messages(api):
     assert other["tasks"] == []
     assert other["messages"] == []
     assert other["participant"]["condition"] == "standardControl"
+
+
+def test_optional_support_feedback_is_owned_idempotent_and_preserves_provenance(api):
+    client, app, provider, tokens = api
+    own, other = tokens["selfAgent"], tokens["friendAgent"]
+    enroll(client, own)
+    enroll(client, other)
+    offer = {
+        "id": "feedback-offer", "kind": "support_feedback_offered",
+        "at": "2026-11-02T01:00:00Z", "condition": "selfAgent",
+        "details": {"instrumentVersion": "dev-support-feedback-v1",
+                    "source": "insights_post_focus", "sessionId": "synthetic-focus",
+                    "cooldownHours": 24},
+    }
+    answer = {
+        **offer, "id": "feedback-answer", "kind": "support_feedback_answered",
+        "details": {"instrumentVersion": "dev-support-feedback-v1",
+                    "source": "explicit_user_choice", "offerId": "feedback-offer",
+                    "choice": "smaller_step", "sessionId": "synthetic-focus"},
+    }
+    for _ in range(2):
+        response = client.post("/api/events", headers=own, json={"events": [offer, answer]})
+        assert response.status_code == 200
+    events = client.get("/api/progress", headers=own).json()
+    assert len(events) == 2
+    assert next(e for e in events if e["id"] == "feedback-answer")["details"] == answer["details"]
+    assert client.get("/api/progress", headers=other).json() == []
+    assert "feedback-answer" not in json.dumps(client.get("/api/export", headers=other).json())
+    changed = {**answer, "details": {**answer["details"], "choice": "quiet_time"}}
+    assert client.post("/api/events", headers=own, json={"events": [changed]}).status_code == 409

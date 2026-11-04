@@ -125,14 +125,14 @@ void main() {
   ) async {
     final container = await launch(tester);
     expect(find.text('One task, at your own pace.'), findsOneWidget);
-    expect(find.text('Focus on this task'), findsOneWidget);
+    expect(find.text('Choose duration'), findsOneWidget);
     expect(find.text('Optional check-in'), findsNothing);
     await tester.tap(find.text('Change task'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Draft presentation slides').last);
     await tester.pumpAndSettle();
     expect(container.read(appProvider).todayTaskId, 'presentation');
-    await tester.tap(find.text('Focus on this task'));
+    await tester.tap(find.text('Choose duration'));
     await tester.pumpAndSettle();
     expect(find.text('Make room for a small start'), findsOneWidget);
     expect(container.read(appProvider).focus, isNull);

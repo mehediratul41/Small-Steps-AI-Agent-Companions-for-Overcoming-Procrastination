@@ -39,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Local synthetic-account administration; no public admin API"
     )
-    parser.add_argument("action", choices=["create", "revoke", "rotate"])
+    parser.add_argument("action", choices=["create", "invite", "revoke", "rotate"])
     parser.add_argument("--id", required=True)
     parser.add_argument("--condition", choices=["selfAgent", "friendAgent", "standardControl"])
     parser.add_argument("--token-file", help="New file for credential; no token printed to stdout")
@@ -47,15 +47,20 @@ def main():
     settings = Settings()
     engine, factory = database(settings.database_url)
     try:
-        if args.action in ("create", "rotate"):
+        if args.action in ("create", "invite", "rotate"):
             if not args.token_file:
                 parser.error("--token-file is required")
             # Reserve the file before modifying the database; never overwrite credentials.
             with Path(args.token_file).open("x", encoding="utf-8") as output:
-                if args.action == "create":
+                if args.action in ("create", "invite"):
                     if not args.condition:
                         parser.error("--condition is required for create")
-                    token = provision(factory, settings, args.id, args.condition)
+                    if args.action == "invite":
+                        from .accounts import invite_account
+
+                        token = invite_account(factory, settings, args.id, args.condition)
+                    else:
+                        token = provision(factory, settings, args.id, args.condition)
                 else:
                     token = secrets.token_urlsafe(32)
                     with transaction(factory) as session:
@@ -64,7 +69,13 @@ def main():
                             raise ValueError("Active participant not found")
                         row.token_hash = digest(token)
                         row.expires_at = time.time() + settings.token_ttl_days * 86400
-                json.dump({"participant_id": args.id, "token": token}, output)
+                json.dump(
+                    {
+                        "participant_id": args.id,
+                        "invitation" if args.action == "invite" else "token": token,
+                    },
+                    output,
+                )
             print("Credential written to the requested local file. Keep it private.")
         else:
             with transaction(factory) as session:

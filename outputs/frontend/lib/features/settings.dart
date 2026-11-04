@@ -27,6 +27,14 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('English / 日本語'),
               trailing: const LanguageMenu(),
             ),
+            ListTile(
+              leading: const Icon(Icons.account_circle_outlined),
+              title: Text(
+                context.isJapanese ? 'アカウント・ログイン' : 'Account / Sign in',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/account'),
+            ),
             Heading(
               context.l10n.smallSteps_5b77d5,
               context.l10n.yourPreferences_41bc34,

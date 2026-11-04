@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:small_steps/app/state.dart';
+import 'package:small_steps/app/chat_memory.dart';
 import 'package:small_steps/app/app.dart';
 import 'package:small_steps/data/models.dart';
 import 'package:small_steps/data/repository.dart';
@@ -190,6 +191,28 @@ void main() {
     expect(c.read(appProvider).condition, StudyCondition.friendAgent);
     expect(c.read(appProvider).messages.single.text, 'DEV-FRIEND-TEST');
   });
+  test(
+    'live account drafts stay isolated across switching and clear on explicit disconnect',
+    () async {
+      await linkBoth();
+      final memory = c.read(chatMemoryProvider.notifier);
+      final friend = chatKey(c.read(appProvider), '__general__');
+      memory.draft(friend, 'Friend private draft');
+      await c
+          .read(appProvider.notifier)
+          .switchLiveAgent(StudyCondition.selfAgent);
+      final self = chatKey(c.read(appProvider), '__general__');
+      expect(c.read(chatMemoryProvider).drafts[self], isNull);
+      memory.draft(self, 'Self private draft');
+      await c
+          .read(appProvider.notifier)
+          .switchLiveAgent(StudyCondition.friendAgent);
+      expect(c.read(chatMemoryProvider).drafts[friend], 'Friend private draft');
+      await c.read(appProvider.notifier).disconnectBackend();
+      expect(c.read(chatMemoryProvider).drafts[friend], isNull);
+      expect(c.read(chatMemoryProvider).drafts[self], 'Self private draft');
+    },
+  );
   test('offline restoration does not silently send a mock response', () async {
     await linkBoth();
     unavailable = true;
@@ -205,6 +228,62 @@ void main() {
       throwsA(isA<AppFailure>()),
     );
   });
+  test(
+    'saved connection retry restores the same owned account without demo fallback',
+    () async {
+      await linkBoth();
+      unavailable = true;
+      c.dispose();
+      c = makeContainer();
+      await c.read(appProvider.notifier).initialize();
+      expect(c.read(appProvider.notifier).needsConnectionRecovery, true);
+      await expectLater(
+        c.read(appProvider.notifier).retrySavedConnection(),
+        throwsStateError,
+      );
+      expect(c.read(appProvider.notifier).needsConnectionRecovery, true);
+      unavailable = false;
+      await c.read(appProvider.notifier).retrySavedConnection();
+      expect(c.read(appProvider.notifier).needsConnectionRecovery, false);
+      expect(c.read(appProvider).backendId, 'DEV-FRIEND-TEST');
+      expect(c.read(appProvider).messages.single.text, 'DEV-FRIEND-TEST');
+    },
+  );
+  testWidgets(
+    'blocked restored chat exposes retry and resumes only after authenticated recovery',
+    (tester) async {
+      await tester.runAsync(() async {
+        await linkBoth();
+        unavailable = true;
+        c.dispose();
+        c = makeContainer();
+        await c.read(appProvider.notifier).initialize();
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: c, child: const SmallStepsApp()),
+      );
+      c.read(routerProvider).go('/chat');
+      await tester.pumpAndSettle();
+      expect(find.text('Retry connection'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).enabled,
+        false,
+      );
+      unavailable = false;
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Retry connection'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(c.read(appProvider).connected, true);
+      expect(find.text('Retry connection'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).enabled,
+        true,
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   test('offline target leaves existing live account unchanged', () async {
     await linkBoth();
     unavailable = true;

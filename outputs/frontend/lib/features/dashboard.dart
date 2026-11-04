@@ -8,6 +8,7 @@ import '../app/theme.dart';
 import '../data/models.dart';
 import '../shared/widgets.dart';
 import 'task_actions.dart';
+import 'support_feedback.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -56,6 +57,7 @@ class DashboardScreen extends ConsumerWidget {
           context.l10n.good_b4f086(context.tr((greeting).toString())),
           context.l10n.oneTaskAtYourOwnPace_d49f69,
         ),
+        const LessSupportButton(),
         if (state.focus != null)
           Panel(
             color: AppTokens.mint,
@@ -73,7 +75,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(
-                  context.l10n.returnToFocusSession_f18054,
+                  context.l10n.uxResume,
                   onPressed: () => context.push('/focus'),
                 ),
               ],
@@ -108,12 +110,15 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 Semantics(
-                  label: context.l10n.chooseAFocusDurationFor_65e4a6(
-                    (selected.title).toString(),
-                  ),
+                  label: context.l10n.uxStartFive,
                   child: PrimaryButton(
-                    context.l10n.focusOnThisTask_1ad73f,
-                    onPressed: () => showFocusSheet(context, ref, selected),
+                    context.l10n.uxStartFive,
+                    onPressed: () => perform(context, () async {
+                      await ref
+                          .read(appProvider.notifier)
+                          .startFiveMinutes(selected.id);
+                      if (context.mounted) context.push('/focus');
+                    }),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -125,6 +130,15 @@ class DashboardScreen extends ConsumerWidget {
                         '/task/${Uri.encodeComponent(selected.id)}',
                       ),
                       child: Text(context.l10n.viewTask_39e023),
+                    ),
+                    TextButton(
+                      onPressed: () => showFocusSheet(context, ref, selected),
+                      child: Text(context.l10n.uxChooseDuration),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          showRecoverySheet(context, ref, selected),
+                      child: Text(context.l10n.uxRecovery),
                     ),
                     if (pending.length > 1)
                       TextButton(

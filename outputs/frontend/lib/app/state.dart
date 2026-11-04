@@ -25,6 +25,7 @@ final appProvider = NotifierProvider<AppController, AppState>(
 
 class AppState {
   final bool loaded, consent;
+  final String chatPhase;
   final String? backendId, backendUrl;
   bool get connected => backendId != null;
   final StudyCondition condition;
@@ -38,6 +39,7 @@ class AppState {
   final String? burden, error;
   final String? chatTaskId, todayTaskId;
   const AppState({
+    this.chatPhase = 'idle',
     this.backendId,
     this.backendUrl,
     this.loaded = false,
@@ -56,6 +58,7 @@ class AppState {
     this.todayTaskId,
   });
   AppState copyWith({
+    String? chatPhase,
     String? backendId,
     String? backendUrl,
     bool? loaded,
@@ -74,6 +77,7 @@ class AppState {
     String? chatTaskId,
     String? todayTaskId,
   }) => AppState(
+    chatPhase: chatPhase ?? this.chatPhase,
     backendId: backendId ?? this.backendId,
     backendUrl: backendUrl ?? this.backendUrl,
     loaded: loaded ?? this.loaded,
@@ -164,6 +168,7 @@ class CompletionUndo {
 class AppController extends Notifier<AppState> {
   CompletionUndo? _completionUndo;
   static const storageKey = 'small_steps.demo.v1';
+  static const restoreDisabledKey = 'small_steps.login_restore_disabled.v1';
   ApiResearchRepository? _api;
   AppState? _localDemo;
   String? _backendCacheKey;
@@ -172,12 +177,37 @@ class AppController extends Notifier<AppState> {
       _restoreFailed = false,
       _switchingAccount = false;
 
+  bool _expiredSession = false;
+  bool get sessionExpired =>
+      _expiredSession || (_api?.authenticationExpired ?? false);
+  bool get needsConnectionRecovery => _restoreFailed || sessionExpired;
+
+  Future<void> retrySavedConnection() async {
+    if (!_restoreFailed || _connectionBusy) return;
+    final vault = ref.read(savedConnectionsProvider.notifier);
+    final saved = await vault.load();
+    if (saved == null) {
+      throw const AppFailure(
+        'Saved AI connection unavailable. Reconnect the backend before chatting.',
+      );
+    }
+    await connectBackend(
+      saved.url,
+      saved.token,
+      expectedCondition: saved.condition,
+      expectedId: saved.id,
+      restoring: true,
+      accountLogin: vault.userSession != null,
+    );
+  }
+
   Future<void> forgetSavedLogins() async {
     if (state.connected || _connectionBusy || _switchingAccount) {
       throw const AppFailure('Disconnect before forgetting saved logins.');
     }
     await ref.read(savedConnectionsProvider.notifier).forget();
     _restoreFailed = false;
+    _expiredSession = false;
     state = state.copyWith();
   }
 
@@ -261,6 +291,7 @@ class AppController extends Notifier<AppState> {
     String token, {
     ApiResearchRepository? client,
     bool remember = false,
+    bool accountLogin = false,
     bool restoring = false,
     StudyCondition? expectedCondition,
     String? expectedId,
@@ -279,17 +310,9 @@ class AppController extends Notifier<AppState> {
         'Finish the current session or request before connecting.',
       );
     }
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null ||
-        uri.hasQuery ||
-        uri.hasFragment ||
-        uri.userInfo.isNotEmpty ||
-        !['http', 'https'].contains(uri.scheme) ||
-        uri.host.isEmpty ||
-        (uri.scheme == 'http' &&
-            !['localhost', '127.0.0.1', '10.0.2.2'].contains(uri.host))) {
+    if (!AppConfig.acceptsBackendUrl(url)) {
       throw const AppFailure(
-        'Use a localhost/emulator HTTP address or an HTTPS backend URL.',
+        'Use HTTPS. Local HTTP is available only in debug builds on the matching simulator or computer.',
       );
     }
     if (token.trim().isEmpty) {
@@ -333,7 +356,18 @@ class AppController extends Notifier<AppState> {
         theme: state.theme,
       );
       await _loadBackend();
-      if (remember &&
+      if (remember && accountLogin) {
+        await ref
+            .read(savedConnectionsProvider.notifier)
+            .rememberUser(
+              SavedConnection(
+                state.backendUrl!,
+                token.trim(),
+                state.backendId!,
+                state.condition,
+              ),
+            );
+      } else if (remember &&
           state.condition.hasAgent &&
           state.backendId!.startsWith('DEV-')) {
         await ref
@@ -349,8 +383,13 @@ class AppController extends Notifier<AppState> {
       } else if (!restoring) {
         await ref.read(savedConnectionsProvider.notifier).deactivate();
       }
+      if (remember) {
+        await ref.read(preferencesProvider).remove(restoreDisabledKey);
+      }
       _restoreFailed = false;
+      _expiredSession = false;
     } catch (_) {
+      _expiredSession = api.authenticationExpired;
       _api = null;
       api.close();
       if (_localDemo != null) state = _localDemo!;
@@ -358,6 +397,48 @@ class AppController extends Notifier<AppState> {
       rethrow;
     } finally {
       _connectionBusy = false;
+    }
+  }
+
+  Future<void> signOutAccount() async {
+    _assertSessionReady();
+    final api = _api;
+    if (api == null) return;
+    if (_chatBusy ||
+        _refinementRequests > 0 ||
+        _savingTasks.isNotEmpty ||
+        _completing.isNotEmpty ||
+        state.focus != null ||
+        api.activeRequests > 0) {
+      throw const AppFailure(
+        'Finish the current session or request before signing out.',
+      );
+    }
+    _connectionBusy = true;
+    String? warning;
+    try {
+      await api.signOutAccount();
+    } catch (_) {
+      warning =
+          'Signed out on this device. Server revocation could not be confirmed; the session expires automatically.';
+    } finally {
+      _connectionBusy = false;
+    }
+    final url = state.backendUrl!;
+    final id = state.backendId!;
+    await disconnectBackend();
+    try {
+      await ref.read(savedConnectionsProvider.notifier).removeAccount(url, id);
+    } catch (_) {
+      warning = [
+        warning,
+        'Some saved credentials could not be cleared. Check device storage before restarting.',
+      ].whereType<String>().join(' ');
+    }
+    if (warning != null) {
+      state = state.copyWith(
+        error: [state.error, warning].whereType<String>().join(' '),
+      );
     }
   }
 
@@ -383,15 +464,36 @@ class AppController extends Notifier<AppState> {
     _connectionBusy = true;
     try {
       await _writes;
-      await ref.read(savedConnectionsProvider.notifier).deactivate();
+      bool restoreBlocked = false;
+      bool cleanupFailed = false;
+      try {
+        restoreBlocked = await ref
+            .read(preferencesProvider)
+            .setBool(restoreDisabledKey, true);
+      } catch (_) {
+        /* Continue closing the current account even if device storage is unavailable. */
+      }
+      try {
+        await ref.read(savedConnectionsProvider.notifier).deactivate();
+      } catch (_) {
+        cleanupFailed = true;
+      }
       _api = null;
       _restoreFailed = false;
+      _expiredSession = false;
       api.close();
       state = _localDemo ?? const AppState();
       _localDemo = null;
       _backendCacheKey = null;
       _acknowledgedEvents.clear();
       if (!state.loaded) await initialize();
+      if (cleanupFailed || !restoreBlocked) {
+        state = state.copyWith(
+          error: restoreBlocked
+              ? 'Disconnected, but some saved credentials could not be cleared. Automatic restoration is disabled on this device.'
+              : 'Disconnected, but cleanup of saved credentials could not be confirmed. Check device storage before restarting.',
+        );
+      }
     } finally {
       _connectionBusy = false;
     }
@@ -479,6 +581,7 @@ class AppController extends Notifier<AppState> {
     await _writes;
     await ref.read(savedConnectionsProvider.notifier).forget();
     _restoreFailed = false;
+    _expiredSession = false;
     final prefs = ref.read(preferencesProvider);
     for (final key in prefs.getKeys().where(
       (key) =>
@@ -714,7 +817,10 @@ class AppController extends Notifier<AppState> {
             'Could not load demo data. Retry, or reset the local demo in Settings.',
       );
     }
-    if (!_restoredLogin && AppConfig.researcherDemo && _api == null) {
+    if (!_restoredLogin &&
+        AppConfig.researcherDemo &&
+        _api == null &&
+        ref.read(preferencesProvider).getBool(restoreDisabledKey) != true) {
       _restoredLogin = true;
       try {
         final saved = await ref.read(savedConnectionsProvider.notifier).load();
@@ -725,6 +831,8 @@ class AppController extends Notifier<AppState> {
             expectedCondition: saved.condition,
             expectedId: saved.id,
             restoring: true,
+            accountLogin:
+                ref.read(savedConnectionsProvider.notifier).userSession != null,
           );
         }
       } catch (_) {
@@ -1413,6 +1521,11 @@ class AppController extends Notifier<AppState> {
     String? retryMessageId,
   }) async {
     _assertSessionReady();
+    if (sessionExpired) {
+      throw const AppFailure(
+        'Your development token is invalid or expired. Disconnect and sign in again.',
+      );
+    }
     if (_chatBusy) {
       throw const AppFailure(
         'Please wait for the current reply before sending another message.',
@@ -1460,8 +1573,10 @@ class AppController extends Notifier<AppState> {
         );
         _append(condition, pending);
       }
+      state = state.copyWith(chatPhase: 'sending');
       await persist();
       try {
+        state = state.copyWith(chatPhase: 'waiting');
         final response = _api != null
             ? await _api!.chatWithId(
                 text,
@@ -1477,10 +1592,12 @@ class AppController extends Notifier<AppState> {
                 profile: state.profile,
                 language: pending.language,
               );
+        state = state.copyWith(chatPhase: 'acknowledged');
         _replaceMessage(condition, pending.withDelivery('sent'));
         _append(condition, response.forTask(pending.taskId));
         await persist();
       } catch (_) {
+        state = state.copyWith(chatPhase: 'failed');
         _replaceMessage(condition, pending.withDelivery('failed'));
         await persist();
         rethrow;
@@ -1516,6 +1633,109 @@ class AppController extends Notifier<AppState> {
   Future<void> selectChatTask(String? id) async {
     _assertSessionReady();
     state = state.copyWith(chatTaskId: id ?? '__general__');
+    await persist();
+  }
+
+  Future<void> startFiveMinutes(String taskId) async {
+    _assertSessionReady();
+    if (state.focus != null) return;
+    await prepareFocus(taskId, minutes: 5);
+    await startFocus();
+  }
+
+  static const feedbackChoices = {
+    'smaller_step',
+    'clear_plan',
+    'encouragement',
+    'quiet_time',
+    'skip',
+  };
+  BehaviorEvent? get pendingSupportFeedback {
+    if (!AppConfig.supportFeedbackEnabled) return null;
+    final offer = state.events
+        .where(
+          (e) =>
+              e.kind == 'support_feedback_offered' &&
+              e.condition == state.condition.name,
+        )
+        .lastOrNull;
+    if (offer == null ||
+        state.events.any(
+          (e) =>
+              e.details['offerId'] == offer.id &&
+              {
+                'support_feedback_answered',
+                'support_feedback_skipped',
+              }.contains(e.kind),
+        )) {
+      return null;
+    }
+    return offer;
+  }
+
+  Future<void> offerSupportFeedback({DateTime? at}) async {
+    if (!AppConfig.supportFeedbackEnabled) return;
+    _assertSessionReady();
+    if (state.focus != null || pendingSupportFeedback != null) return;
+    final completed = state.events
+        .where(
+          (e) =>
+              {'focus_elapsed', 'focus_ended_early'}.contains(e.kind) &&
+              e.condition == state.condition.name,
+        )
+        .lastOrNull;
+    if (completed == null) return;
+    final last = state.events
+        .where(
+          (e) =>
+              e.kind == 'support_feedback_offered' &&
+              e.condition == state.condition.name,
+        )
+        .lastOrNull;
+    final now = at ?? DateTime.now();
+    final hours = AppConfig.feedbackCooldownHours.clamp(1, 168);
+    if (last != null &&
+        (last.details['sessionId'] == completed.details['sessionId'] ||
+            now.difference(last.at) < Duration(hours: hours))) {
+      return;
+    }
+    _record(
+      'support_feedback_offered',
+      state.tasks.where((t) => t.id == completed.taskId).firstOrNull,
+      at: now,
+      details: {
+        'instrumentVersion': 'dev-support-feedback-v1',
+        'source': 'insights_post_focus',
+        'sessionId': completed.details['sessionId'],
+        'cooldownHours': hours,
+      },
+    );
+    await persist();
+  }
+
+  Future<void> answerSupportFeedback(String choice) async {
+    if (!AppConfig.supportFeedbackEnabled) {
+      throw const AppFailure('Development feedback is disabled.');
+    }
+    _assertSessionReady();
+    if (!feedbackChoices.contains(choice)) {
+      throw const AppFailure('Choose an available response.');
+    }
+    final offer = pendingSupportFeedback;
+    if (offer == null) return;
+    _record(
+      choice == 'skip'
+          ? 'support_feedback_skipped'
+          : 'support_feedback_answered',
+      state.tasks.where((t) => t.id == offer.taskId).firstOrNull,
+      details: {
+        'offerId': offer.id,
+        'choice': choice,
+        'instrumentVersion': 'dev-support-feedback-v1',
+        'source': 'explicit_user_choice',
+        'sessionId': offer.details['sessionId'],
+      },
+    );
     await persist();
   }
 

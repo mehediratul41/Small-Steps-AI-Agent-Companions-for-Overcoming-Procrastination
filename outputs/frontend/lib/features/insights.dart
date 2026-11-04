@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../app/state.dart';
+import 'support_feedback.dart';
 import '../app/theme.dart';
 import '../shared/widgets.dart';
 
@@ -50,6 +51,7 @@ class InsightsScreen extends ConsumerWidget {
           context.l10n.yourProgress_44a680,
           context.l10n.noticeYourPatternsWithCompassion_1a39b5,
         ),
+        const SupportFeedbackPanel(),
         Panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

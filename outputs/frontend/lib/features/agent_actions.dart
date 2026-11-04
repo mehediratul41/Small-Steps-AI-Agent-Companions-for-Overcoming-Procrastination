@@ -387,30 +387,48 @@ class _AgentTaskActionsState extends ConsumerState<AgentTaskActions> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.titleMedium),
-          if (task != null)
-            Text(
-              context.l10n.priority_18c496(
-                (task.title).toString(),
-                context.tr((task.priority).toString()),
-                context.tr(
-                  (task.subtasks.any((s) => !s.done)
-                          ? '\nNext step: ${task.subtasks.where((s) => !s.done).first.title}'
-                          : '')
-                      .toString(),
+          ExpansionTile(
+            key: PageStorageKey('suggestion-details-$id'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
+            title: Text(label, style: Theme.of(context).textTheme.titleMedium),
+            subtitle: task == null
+                ? null
+                : Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            children: [
+              if (task != null)
+                Text(
+                  context.l10n.priority_18c496(
+                    (task.title).toString(),
+                    context.tr((task.priority).toString()),
+                    context.tr(
+                      (task.subtasks.any((s) => !s.done)
+                              ? '\nNext step: ${task.subtasks.where((s) => !s.done).first.title}'
+                              : '')
+                          .toString(),
+                    ),
+                  ),
                 ),
+              Text(
+                kind == 'settings'
+                    ? context.l10n.youCanTurnNotificationsOffThis_83fe52
+                    : state.condition == StudyCondition.selfAgent
+                    ? context.l10n.chooseWhatFitsYourOwnGoals_44f6d5
+                    : context.l10n.weCanKeepThisManageableYou_ab5784,
               ),
-            ),
-          Text(
-            kind == 'settings'
-                ? context.l10n.youCanTurnNotificationsOffThis_83fe52
-                : state.condition == StudyCondition.selfAgent
-                ? context.l10n.chooseWhatFitsYourOwnGoals_44f6d5
-                : context.l10n.weCanKeepThisManageableYou_ab5784,
+              Text(
+                context.l10n.appSelectedActionUsingYourTask_428a07,
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
           ),
           Text(
-            context.l10n.appSelectedActionUsingYourTask_428a07,
-            style: TextStyle(fontSize: 12),
+            context.l10n.msgTaskSupportSource,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           Wrap(
             children: [

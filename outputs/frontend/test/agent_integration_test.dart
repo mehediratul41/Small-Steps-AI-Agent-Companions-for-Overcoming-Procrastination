@@ -273,6 +273,13 @@ void main() {
     c.read(routerProvider).go('/chat');
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
+      find.text('More actions'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('More actions'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
       find.text('Correct this task'),
       200,
       scrollable: find.byType(Scrollable).first,
@@ -386,7 +393,9 @@ void main() {
             .read(appProvider)
             .events
             .where((e) => e.kind == 'suggestion_displayed'),
-        isEmpty,
+        hasLength(
+          1,
+        ), // restored at the latest messages; the card is actually visible
       );
       await tester.scrollUntilVisible(
         find.text('Review suggestion'),
@@ -497,6 +506,13 @@ void main() {
       find.byType(MaterialApp),
       matchesGoldenFile('../../../work/agent-review/chat.png'),
     );
+    await tester.scrollUntilVisible(
+      find.text('More actions'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('More actions'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Correct this task'),
       150,

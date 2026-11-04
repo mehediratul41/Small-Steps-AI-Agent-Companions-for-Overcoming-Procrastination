@@ -41,7 +41,7 @@ If the network fails, the form receives an error and there is no general offline
 
 ## 5. Example: one chat message
 
-[ChatScreen.send](../outputs/frontend/lib/features/chat.dart) clears the composer, sets a busy state and calls `AppController.send`. The controller creates a pending `ChatMessage` with a stable ID, task ID and language. It persists that pending record before requesting the service.
+[ChatScreen.send](../outputs/frontend/lib/features/chat.dart) clears a submitted composer draft, sets a busy state and calls `AppController.send`. Quick-action messages preserve any unrelated typed draft. [ChatMemory](../outputs/frontend/lib/app/chat_memory.dart) scopes transient drafts/offsets by account, agent and conversation. The controller creates a pending `ChatMessage` with a stable ID, task ID and language. It persists that pending record before requesting the service.
 
 Connected mode calls `ApiResearchRepository.chatWithId`: the message ID becomes `Idempotency-Key`. Only message, task ID and language are submitted; the client does not choose the system prompt or supply trusted history.
 
@@ -57,7 +57,7 @@ Backend credentials are provisioned locally by [admin.py](../outputs/backend/app
 
 [saved_connections.dart](../outputs/frontend/lib/data/saved_connections.dart) stores explicitly remembered synthetic accounts. `SavedConnections` is observable metadata; its backing store is secure on Android/iOS. `AppController.connectBackend` checks mode and optional expected identity/condition, isolates the demo state, and loads `/api/state`. Startup restoration validates both saved ID and condition; a failed restore cannot silently become writable mock mode.
 
-`switchLiveAgent` validates a saved same-server synthetic target, blocks busy/focus transitions, flushes the current account, loads the target account and saves the active selection. It attempts rollback on a later failure. `ChatScreen.switchAgent` maintains separate composer drafts and updates task context. `switchCondition` remains local-demo-only. Neither route changes a real backend assignment.
+`switchLiveAgent` validates a saved same-server synthetic target, blocks busy/focus transitions, flushes the current account, loads the target account and saves the active selection. It attempts rollback on a later failure. `ChatScreen.switchAgent` updates task context; ChatMemory and conversation binding restore the target account/agent/conversation draft without transferring text between accounts. `switchCondition` remains local-demo-only. Neither route changes a real backend assignment.
 
 Disconnect deactivates automatic restoration but keeps explicitly remembered logins until forgotten. Development erasure revokes the server account and removes its saved credential without removing another linked account. Device caches are separate from the secure token store; pending research text is not encrypted by SharedPreferences and is suitable only for this synthetic prototype.
 

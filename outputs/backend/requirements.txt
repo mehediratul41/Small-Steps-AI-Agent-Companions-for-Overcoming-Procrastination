@@ -7,3 +7,5 @@ pydantic-settings>=2.7,<3
 pytest>=8,<10
 httpx>=0.28,<1
 ruff>=0.9,<1
+
+argon2-cffi>=23,<26

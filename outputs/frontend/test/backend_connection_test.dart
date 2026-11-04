@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:small_steps/app/state.dart';
+import 'package:small_steps/app/app.dart';
+import 'package:small_steps/l10n/app_localizations.dart';
 import 'package:small_steps/data/models.dart';
 import 'package:small_steps/data/repository.dart';
 
@@ -220,6 +222,151 @@ void main() {
     'http://127.0.0.1:8000',
     'synthetic-participant-token',
     client: server.client(),
+  );
+
+  test(
+    'rejected saved credentials remain sign-in-required after the API object closes',
+    () async {
+      final api = server.client();
+      api.dio.interceptors.insert(
+        0,
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            handler.reject(
+              DioException(
+                requestOptions: request,
+                response: Response(requestOptions: request, statusCode: 401),
+                type: DioExceptionType.badResponse,
+              ),
+            );
+          },
+        ),
+      );
+      await expectLater(
+        app.connectBackend(
+          'http://127.0.0.1:8000',
+          'invalid-synthetic',
+          client: api,
+          restoring: true,
+        ),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(app.sessionExpired, true);
+      expect(app.needsConnectionRecovery, true);
+      expect(container.read(appProvider).connected, false);
+    },
+  );
+
+  test(
+    '401 blocks repeated chat and preserves the failed message for its owner',
+    () async {
+      final api = server.client();
+      await app.connectBackend(
+        'http://127.0.0.1:8000',
+        'synthetic-token',
+        client: api,
+      );
+      api.dio.interceptors.insert(
+        0,
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            handler.reject(
+              DioException(
+                requestOptions: request,
+                response: Response(requestOptions: request, statusCode: 401),
+                type: DioExceptionType.badResponse,
+              ),
+            );
+          },
+        ),
+      );
+      await expectLater(
+        app.send('Synthetic expired-session message', null),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(app.sessionExpired, true);
+      expect(app.needsConnectionRecovery, true);
+      final count = container.read(appProvider).messages.length;
+      await expectLater(
+        app.send('Do not append', null),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(container.read(appProvider).messages.length, count);
+      expect(container.read(appProvider).messages.single.delivery, 'failed');
+      await app.disconnectBackend();
+      expect(container.read(appProvider).connected, false);
+      expect(
+        prefs
+            .getKeys()
+            .where((key) => key.startsWith('small_steps.backend.v1.'))
+            .any(
+              (key) => prefs
+                  .getString(key)!
+                  .contains('Synthetic expired-session message'),
+            ),
+        true,
+      );
+    },
+  );
+
+  testWidgets(
+    'expired chat shows sign-in header and directly opens safe reauthentication',
+    (tester) async {
+      await tester.runAsync(() async {
+        final api = server.client();
+        await app.connectBackend(
+          'http://127.0.0.1:8000',
+          'synthetic-token',
+          client: api,
+        );
+        api.dio.interceptors.insert(
+          0,
+          InterceptorsWrapper(
+            onRequest: (request, handler) {
+              handler.reject(
+                DioException(
+                  requestOptions: request,
+                  response: Response(requestOptions: request, statusCode: 401),
+                  type: DioExceptionType.badResponse,
+                ),
+              );
+            },
+          ),
+        );
+        await expectLater(
+          app.send('Synthetic only', null),
+          throwsA(isA<AppFailure>()),
+        );
+      });
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: container.read(routerProvider),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+          ),
+        ),
+      );
+      container.read(routerProvider).go('/chat');
+      await tester.pumpAndSettle();
+      expect(find.text('Small Steps · Sign-in required'), findsOneWidget);
+      expect(find.text('Retry connection'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).enabled,
+        false,
+      );
+      final dynamic signIn = tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'Sign in again'))
+          .onPressed;
+      await tester.runAsync(() async {
+        await signIn();
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Account'), findsOneWidget);
+      expect(container.read(appProvider).connected, false);
+      await tester.pumpWidget(const SizedBox());
+    },
   );
 
   test(

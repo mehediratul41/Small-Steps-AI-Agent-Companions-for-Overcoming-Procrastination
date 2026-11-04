@@ -18,6 +18,8 @@ void main() {
       isFalse,
       reason: 'Run with --dart-define=RESEARCHER_DEMO=false',
     );
+    expect(AppConfig.supportFeedbackEnabled, isFalse);
+    expect(AppConfig.reducedSupportEnabled, isFalse);
     SharedPreferences.setMockInitialValues({
       AppController.storageKey: jsonEncode(
         const AppState(

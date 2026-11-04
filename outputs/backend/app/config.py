@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://127.0.0.1:8787", "http://localhost:8787"]
     protocol_version: str = "development-v1"
     consent_version: str = "demo-consent-v1"
+    account_enrollment: bool = True
     token_ttl_days: int = 7
     ai_requests_per_hour: int = 30
 

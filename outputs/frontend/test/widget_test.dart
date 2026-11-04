@@ -181,6 +181,7 @@ void main() {
         find.byType(TextField),
         'I am finding it hard to start',
       );
+      await tester.pump();
       await tester.tap(find.byTooltip('Send message'));
       await tester.pumpAndSettle();
       expect(c.read(appProvider).messages.length, 1);

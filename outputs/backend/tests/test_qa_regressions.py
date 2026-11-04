@@ -8,6 +8,28 @@ from app.ai import MockProvider
 from app.db import Participant, transaction
 
 
+def test_database_unavailability_returns_safe_error_and_recovers(api):
+    from sqlalchemy import event
+    from sqlalchemy.exc import OperationalError
+
+    client, app, _, tokens = api
+    engine = app.state.factory.kw["bind"]
+
+    def unavailable(*_):
+        raise OperationalError("synthetic offline", {}, Exception("synthetic failure"))
+
+    event.listen(engine, "before_cursor_execute", unavailable)
+    try:
+        for path in ["/health", "/api/tasks"]:
+            response = client.get(path, headers=tokens["selfAgent"])
+            assert response.status_code == 503
+            assert response.json()["error"]["code"] == "storage_unavailable"
+            assert "synthetic" not in response.text
+    finally:
+        event.remove(engine, "before_cursor_execute", unavailable)
+    assert client.get("/health").status_code == 200
+
+
 def test_completed_create_retry_returns_original_receipt(api):
     client, app, provider, tokens = api
     h = tokens["selfAgent"]

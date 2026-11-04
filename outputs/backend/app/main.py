@@ -24,7 +24,17 @@ from .ai import (
     MockProvider,
 )
 from .config import Settings
-from .db import AIJob, Participant, Record, TaskRow, database, now_iso, transaction
+from .db import (
+    AIJob,
+    Invitation,
+    LoginAccount,
+    Participant,
+    Record,
+    TaskRow,
+    database,
+    now_iso,
+    transaction,
+)
 from .schemas import (
     AcceptSuggestion,
     BehaviorEvent,
@@ -148,6 +158,10 @@ def create_app(settings: Settings | None = None, provider=None):
                 fail(401, "unauthorized", "Participant token is invalid or expired")
             return p
 
+    from .accounts import install_accounts
+
+    install_accounts(app, factory, settings, authenticated)
+
     def enrolled(p: Participant = Depends(authenticated)):
         if p.consent_version != settings.consent_version:
             fail(
@@ -232,6 +246,8 @@ def create_app(settings: Settings | None = None, provider=None):
             current = session.get(Participant, p.id)
             if not current or not current.active or current.expires_at <= time.time():
                 fail(401, "unauthorized", "Participant access is no longer valid")
+            if current.token_hash != p.token_hash:
+                fail(401, "unauthorized", "Participant session changed")
             if (
                 current.condition != p.condition
                 or current.consent_version != settings.consent_version
@@ -401,6 +417,7 @@ def create_app(settings: Settings | None = None, provider=None):
             "aiProvider": provider.name,
             "model": provider.model,
             "participantEnrollment": False,
+            "invitationAccounts": settings.account_enrollment,
         }
 
     @app.get("/api/participants/me")
@@ -845,7 +862,7 @@ def create_app(settings: Settings | None = None, provider=None):
         # This is a development-account tool, not an approved research withdrawal policy.
         async with ai_lock:
             with owned_transaction(p) as session:
-                for model in (TaskRow, Record, AIJob):
+                for model in (TaskRow, Record, AIJob, LoginAccount, Invitation):
                     session.execute(delete(model).where(model.participant_id == p.id))
                 owner = session.get(Participant, p.id)
                 owner.active = False

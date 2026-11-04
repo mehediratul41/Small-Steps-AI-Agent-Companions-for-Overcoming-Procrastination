@@ -42,3 +42,8 @@ tzdata==2026.5
 urllib3==2.8.0
 uvicorn==0.54.0
 websockets==17.3
+
+argon2-cffi==25.1.0
+argon2-cffi-bindings==26.1.0
+psycopg==3.3.6
+psycopg-binary==3.3.6

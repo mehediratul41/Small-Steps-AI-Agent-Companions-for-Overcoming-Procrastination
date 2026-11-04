@@ -65,6 +65,7 @@ final savedConnectionsProvider =
 
 class SavedConnections extends Notifier<Map<StudyCondition, SavedConnection>> {
   StudyCondition? active;
+  SavedConnection? userSession;
   @override
   Map<StudyCondition, SavedConnection> build() => {};
   Future<SavedConnection?> load() async {
@@ -81,20 +82,33 @@ class SavedConnections extends Notifier<Map<StudyCondition, SavedConnection>> {
     active = data['active'] == null
         ? null
         : StudyCondition.values.byName(data['active']);
-    return state[active];
+    userSession = data['userSession'] == null
+        ? null
+        : SavedConnection.fromJson(
+            Map<String, dynamic>.from(data['userSession']),
+          );
+    return userSession ?? state[active];
   }
 
   Future<void> remember(SavedConnection account) async {
     if (!account.id.startsWith('DEV-') || !account.condition.hasAgent) {
       throw StateError('Only synthetic DEV- agent accounts can be remembered.');
     }
+    userSession = null;
     final next = {...state, account.condition: account};
     await _save(next, account.condition);
     state = next;
     active = account.condition;
   }
 
+  Future<void> rememberUser(SavedConnection account) async {
+    userSession = account;
+    await _save(state, null);
+    active = null;
+  }
+
   Future<void> deactivate() async {
+    userSession = null;
     await _save(state, null);
     active = null;
   }
@@ -102,6 +116,7 @@ class SavedConnections extends Notifier<Map<StudyCondition, SavedConnection>> {
   Future<void> removeAccount(String url, String id) async {
     final next = Map<StudyCondition, SavedConnection>.from(state)
       ..removeWhere((_, account) => account.url == url && account.id == id);
+    if (userSession?.url == url && userSession?.id == id) userSession = null;
     final selected = next.containsKey(active) ? active : null;
     await _save(next, selected);
     state = next;
@@ -111,6 +126,7 @@ class SavedConnections extends Notifier<Map<StudyCondition, SavedConnection>> {
   Future<void> forget() async {
     await ref.read(connectionStorageProvider).clear();
     active = null;
+    userSession = null;
     state = {};
   }
 
@@ -123,6 +139,7 @@ class SavedConnections extends Notifier<Map<StudyCondition, SavedConnection>> {
         jsonEncode({
           'accounts': accounts.values.map((e) => e.toJson()).toList(),
           'active': selected?.name,
+          'userSession': userSession?.toJson(),
         }),
       );
 }

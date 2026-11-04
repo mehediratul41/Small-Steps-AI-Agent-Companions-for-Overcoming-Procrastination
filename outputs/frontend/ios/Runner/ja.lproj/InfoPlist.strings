@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "Small Steps";
+"NSLocalNetworkUsageDescription" = "ローカルネットワーク上の開発用バックエンドに接続します。研究用ビルドはHTTPSを使用します。";

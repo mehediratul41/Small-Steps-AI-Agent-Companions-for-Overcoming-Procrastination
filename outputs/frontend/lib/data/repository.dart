@@ -4,7 +4,8 @@ import 'models.dart';
 
 class AppFailure implements Exception {
   final String message;
-  const AppFailure(this.message);
+  final String? code;
+  const AppFailure(this.message, {this.code});
   @override
   String toString() => message;
 }
@@ -390,8 +391,30 @@ class ApiResearchRepository implements ResearchRepository {
       ),
     ),
   );
+  Future<Map<String, dynamic>> authenticateAccount({
+    required String username,
+    required String password,
+    String? invitation,
+  }) => _request(
+    () async => Map<String, dynamic>.from(
+      (await dio.post(
+        invitation == null ? '/api/auth/login' : '/api/auth/enroll',
+        data: {
+          'username': username,
+          'password': password,
+          'invitation': ?invitation,
+        },
+      )).data,
+    ),
+  );
+
+  Future<void> signOutAccount() => _request(() async {
+    await dio.post('/api/auth/logout');
+  });
+
   final Dio dio;
   int activeRequests = 0;
+  bool authenticationExpired = false;
   Map<String, dynamic> assignment = {};
   final Map<String, String> proposalIds = {};
   ApiResearchRepository(String baseUrl, {Dio? client, String? token})
@@ -423,6 +446,7 @@ class ApiResearchRepository implements ResearchRepository {
     try {
       return await work();
     } on DioException catch (error) {
+      if (error.response?.statusCode == 401) authenticationExpired = true;
       final data = error.response?.data;
       final code = data is Map && data['error'] is Map
           ? data['error']['code']
@@ -442,14 +466,35 @@ class ApiResearchRepository implements ResearchRepository {
                 'The AI or study service is unavailable. Your task was not changed by the AI request.',
               _ => 'Could not reach the study service. Please try again.',
             };
-      throw AppFailure(message);
+      final category = code == 'ai_request_unresolved'
+          ? 'pending'
+          : switch (error.response?.statusCode) {
+              401 => 'authentication',
+              403 || 404 || 409 || 422 => 'validation',
+              429 => 'limited',
+              503 => 'provider',
+              504 => 'timeout',
+              _ =>
+                {
+                      DioExceptionType.connectionTimeout,
+                      DioExceptionType.receiveTimeout,
+                      DioExceptionType.sendTimeout,
+                    }.contains(error.type)
+                    ? 'timeout'
+                    : error.response == null
+                    ? 'network'
+                    : 'service',
+            };
+      throw AppFailure(message, code: category);
     } on FormatException catch (_) {
       throw const AppFailure(
         'The study service returned an unexpected response.',
+        code: 'malformed',
       );
     } on TypeError catch (_) {
       throw const AppFailure(
         'The study service response does not match the API contract.',
+        code: 'malformed',
       );
     } finally {
       activeRequests--;

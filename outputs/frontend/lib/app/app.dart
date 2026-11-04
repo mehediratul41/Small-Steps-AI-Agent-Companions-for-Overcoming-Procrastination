@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/onboarding.dart';
+import '../features/account.dart';
 import '../features/backend_connection.dart';
 import '../features/dashboard.dart';
 import '../features/tasks.dart';
@@ -43,7 +44,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       if (!state.consent &&
-          !['/welcome', '/consent', '/settings', '/backend'].contains(path)) {
+          ![
+            '/welcome',
+            '/consent',
+            '/settings',
+            '/backend',
+            '/account',
+          ].contains(path)) {
         return '/welcome';
       }
       if (state.consent &&
@@ -57,6 +64,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(path: '/account', builder: (context, _) => const AccountScreen()),
       GoRoute(
         path: '/loading',
         builder: (context, _) =>
@@ -306,7 +314,9 @@ class AppShell extends ConsumerWidget {
                 )
               : null,
           title: Text(
-            state.connected
+            ref.read(appProvider.notifier).sessionExpired
+                ? context.l10n.sessionExpiredTitle
+                : state.connected
                 ? context.l10n.smallStepsConnectedDevelopment_b3aebd
                 : (AppConfig.researcherDemo
                       ? context.l10n.smallStepsDemo_989b13
@@ -331,7 +341,7 @@ class AppShell extends ConsumerWidget {
               constraints: const BoxConstraints(maxWidth: 600),
               child: Column(
                 children: [
-                  if (state.error != null)
+                  if (state.error != null && path != '/chat')
                     MaterialBanner(
                       content: Text(context.tr(state.error!)),
                       actions: [

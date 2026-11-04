@@ -108,3 +108,11 @@ htmlcov/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Apple signing and local distribution artifacts
+*.mobileprovision
+*.provisionprofile
+*.p8
+*.xcarchive/
+*.dSYM/
+ExportOptions.local.plist

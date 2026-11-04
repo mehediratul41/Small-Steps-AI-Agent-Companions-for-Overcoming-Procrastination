@@ -1745,7 +1745,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get useALocalhostEmulatorHttpAddress_92a22a =>
-      'Use a localhost/emulator HTTP address or an HTTPS backend URL.';
+      'Use HTTPS. Local HTTP is available only in debug builds on the matching simulator or computer.';
 
   @override
   String get useAssignedAgentWording_104d77 => 'Use assigned agent wording';
@@ -2240,4 +2240,214 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rememberAgentHint =>
       'DEV- accounts only. Android/iOS use secure device storage. Browser previews remember only for this session.';
+
+  @override
+  String get uxStartFive => 'Start 5 minutes';
+
+  @override
+  String get uxChooseDuration => 'Choose duration';
+
+  @override
+  String get uxResume => 'Resume session';
+
+  @override
+  String get uxRecovery => 'Make smaller · Reschedule · Pause';
+
+  @override
+  String get uxChatInfo => 'About this conversation';
+
+  @override
+  String get uxMoreActions => 'More actions';
+
+  @override
+  String get uxFewerActions => 'Fewer actions';
+
+  @override
+  String get uxNewReply => 'New reply · Show latest';
+
+  @override
+  String get uxSending => 'Sending…';
+
+  @override
+  String get uxWaiting => 'Waiting for reply…';
+
+  @override
+  String get uxServerSaved => 'Saved on server';
+
+  @override
+  String get uxLocalSaved => 'Kept in local demo';
+
+  @override
+  String get uxExample => 'Use an editable example';
+
+  @override
+  String get uxExampleCue => 'After lunch';
+
+  @override
+  String get uxExampleAction => 'Open one paper and read its abstract';
+
+  @override
+  String get uxDraftHint =>
+      'Draft only. Save to apply; text cues do not schedule reminders.';
+
+  @override
+  String get uxReviewStep => 'Review one smaller step';
+
+  @override
+  String get uxRoughDraft => 'Try a rough first attempt';
+
+  @override
+  String get uxDistraction => 'Choose one distraction to put aside';
+
+  @override
+  String get uxDraftAction => 'Make a rough first attempt at: ';
+
+  @override
+  String get uxDistractionAction => 'Put one distraction aside, then begin: ';
+
+  @override
+  String get uxSkip => 'Skip';
+
+  @override
+  String get uxFeedback => 'What helped?';
+
+  @override
+  String get uxFeedbackHint =>
+      'Optional development feedback. No score or effectiveness claim.';
+
+  @override
+  String get uxSmallerStep => 'Smaller step';
+
+  @override
+  String get uxClearPlan => 'Clear plan';
+
+  @override
+  String get uxEncouragement => 'Encouragement';
+
+  @override
+  String get uxQuietTime => 'Quiet time';
+
+  @override
+  String get uxFeedbackLast => 'Last time, you selected:';
+
+  @override
+  String get uxFeedbackStorage =>
+      'Your selection is recorded locally; connected reports synchronize with the server.';
+
+  @override
+  String get uxLessSupport => 'Less support today';
+
+  @override
+  String get uxPauseAll => 'Pause all task reminders until tomorrow?';
+
+  @override
+  String get uxPauseAllHint =>
+      'This pauses all Small Steps task reminders until the next local day, including scheduled start and deadline reminders. Suppressed reminders are not replayed. You can resume in notification settings.';
+
+  @override
+  String get uxFeedbackError => 'Could not record feedback. Try again.';
+
+  @override
+  String get connectionRestoreFailed =>
+      'Saved connection unavailable. Retry, or sign in again. Chat is paused; previous demo messages are not live replies.';
+
+  @override
+  String get retryConnection => 'Retry connection';
+
+  @override
+  String get reconnectAccount => 'Sign in again';
+
+  @override
+  String get savedConnectionLegacyError =>
+      'Saved AI connection unavailable. Reconnect the backend before chatting.';
+
+  @override
+  String get sessionExpiredTitle => 'Small Steps · Sign-in required';
+
+  @override
+  String get sessionExpiredMessage =>
+      'Your session expired or was revoked. Sign in again; retrying the message cannot renew it.';
+
+  @override
+  String get msgConnected => 'Connected';
+
+  @override
+  String get msgDemo => 'Scripted demo';
+
+  @override
+  String get msgUnavailable => 'Connection unavailable';
+
+  @override
+  String get msgConversations => 'Conversations';
+
+  @override
+  String get msgSearch => 'Search loaded conversations';
+
+  @override
+  String get msgSearchHint =>
+      'Search covers loaded titles and messages on this account and agent only.';
+
+  @override
+  String get msgNoMessages => 'No messages yet';
+
+  @override
+  String get msgNoResults => 'No matching conversations';
+
+  @override
+  String get msgStart => 'Start a conversation';
+
+  @override
+  String get msgStartHint => 'Write a message, or choose a task to discuss.';
+
+  @override
+  String get msgCouldNotSend => 'Couldn’t send';
+
+  @override
+  String get msgMessageOptions => 'Message options';
+
+  @override
+  String get msgDetails => 'Failure details';
+
+  @override
+  String get msgNetwork =>
+      'Connection problem. Your message is kept for retry.';
+
+  @override
+  String get msgTimeout =>
+      'The request timed out. Check its status by retrying the same message.';
+
+  @override
+  String get msgLimited =>
+      'The service is busy or rate-limited. Wait before retrying.';
+
+  @override
+  String get msgProvider =>
+      'AI or study service unavailable. Try later; no task changes were applied.';
+
+  @override
+  String get msgPending =>
+      'This attempt is unresolved. Retry checks the same request; cancel before explicitly making a new attempt.';
+
+  @override
+  String get msgMalformed =>
+      'The service returned an unexpected response. Your message is retained.';
+
+  @override
+  String get msgCopy => 'Copy message';
+
+  @override
+  String get msgCopied => 'Message copied';
+
+  @override
+  String get msgCancelled => 'Retry cancelled · message retained';
+
+  @override
+  String get msgDraft => 'Draft';
+
+  @override
+  String get msgSignInRequired => 'Sign-in required';
+
+  @override
+  String get msgTaskSupportSource =>
+      'Task-based suggestion · review before changing.';
 }

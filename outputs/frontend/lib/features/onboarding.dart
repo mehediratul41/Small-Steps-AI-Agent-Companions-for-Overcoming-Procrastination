@@ -85,6 +85,15 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                     if (AppConfig.researcherDemo)
                       TextButton(
+                        onPressed: () => context.go('/account'),
+                        child: Text(
+                          context.isJapanese
+                              ? 'ログイン・招待コードで登録'
+                              : 'Sign in / Use invitation',
+                        ),
+                      ),
+                    if (AppConfig.researcherDemo)
+                      TextButton(
                         onPressed: () => context.go('/backend'),
                         child: Text(
                           context.l10n.connectToDevelopmentBackend_3ac1a0,

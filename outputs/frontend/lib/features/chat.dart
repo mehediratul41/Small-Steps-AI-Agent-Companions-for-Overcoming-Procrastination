@@ -1,17 +1,20 @@
-import '../l10n/strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../app/state.dart';
-import '../app/theme.dart';
-import '../data/models.dart';
-import '../shared/widgets.dart';
-import 'task_actions.dart';
-import 'agent_actions.dart';
+import '../app/chat_memory.dart';
 import '../app/config.dart';
+import '../app/state.dart';
+import '../data/models.dart';
+import '../data/repository.dart';
 import '../data/saved_connections.dart';
+import '../l10n/strings.dart';
+import '../shared/widgets.dart';
+import 'agent_actions.dart';
+import 'chat_widgets.dart';
+import 'task_actions.dart';
+export 'chat_widgets.dart' show MessageBubble;
 
-/// One implementation for both conditions: identical composer, actions and layout.
+/// Both personas share navigation, composer, timeline and task capabilities.
 class ChatScreen extends ConsumerStatefulWidget {
   final String? initialTaskId;
   const ChatScreen({super.key, this.initialTaskId});
@@ -21,14 +24,23 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final input = TextEditingController();
-  final scroll = ScrollController();
-  bool busy = false, switching = false;
-  String? error, taskId;
-  final Map<StudyCondition, String> drafts = {};
+  final scroll = ScrollController(keepScrollOffset: false);
+  bool busy = false,
+      switching = false,
+      newReply = false,
+      followReply = true,
+      restoring = false;
+  String? taskId;
+  AppFailure? failure;
+  String? failedId;
+  ChatKey? activeKey;
+  String? lastMessage;
+
   @override
   void initState() {
     super.initState();
     taskId = widget.initialTaskId;
+    scroll.addListener(rememberOffset);
   }
 
   @override
@@ -42,22 +54,61 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void dispose() {
     input.dispose();
+    scroll.removeListener(rememberOffset);
     scroll.dispose();
     super.dispose();
   }
 
-  void scrollDown() {
+  void rememberOffset() {
+    if (!restoring && activeKey != null && scroll.hasClients) {
+      ref.read(chatMemoryProvider.notifier).offset(activeKey!, scroll.offset);
+    }
+  }
+
+  void draft(String value) {
+    if (activeKey != null) {
+      ref.read(chatMemoryProvider.notifier).draft(activeKey!, value);
+    }
+  }
+
+  void bind(ChatKey key, String? latest) {
+    if (activeKey == key) return;
+    activeKey = key;
+    lastMessage = latest;
+    failure = null;
+    failedId = null;
+    newReply = false;
+    restoring = true;
+    input.text = ref.read(chatMemoryProvider).drafts[key] ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (scroll.hasClients) {
+      if (!mounted || activeKey != key || !scroll.hasClients) return;
+      final saved = ref.read(chatMemoryProvider).offsets[key];
+      scroll.jumpTo(
+        (saved ?? scroll.position.maxScrollExtent).clamp(
+          0,
+          scroll.position.maxScrollExtent,
+        ),
+      );
+      followReply = scroll.position.extentAfter < 100;
+      restoring = false;
+    });
+  }
+
+  void latest({bool force = false}) {
+    final key = activeKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || key != activeKey || !scroll.hasClients) return;
+      if (force || followReply) {
         scroll.jumpTo(scroll.position.maxScrollExtent);
+        if (newReply) setState(() => newReply = false);
+      } else if (!newReply) {
+        setState(() => newReply = true);
       }
     });
   }
 
   Future<void> switchAgent(StudyCondition agent) async {
     if (busy || switching || agent == ref.read(appProvider).condition) return;
-    final previous = ref.read(appProvider).condition;
-    drafts[previous] = input.text;
     setState(() => switching = true);
     try {
       final controller = ref.read(appProvider.notifier);
@@ -66,15 +117,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       } else {
         await controller.switchCondition(agent);
       }
-      if (mounted) {
-        setState(() {
-          input.text = drafts[agent] ?? '';
-          taskId = ref.read(appProvider).connected
-              ? ref.read(appProvider).chatTaskId
-              : taskId;
-          error = null;
-        });
-      }
+      if (mounted) setState(() => taskId = ref.read(appProvider).chatTaskId);
+    } finally {
+      if (mounted) setState(() => switching = false);
+    }
+  }
+
+  Future<void> signInAgain() async {
+    if (busy || switching) return;
+    final router = GoRouter.of(context);
+    setState(() => switching = true);
+    try {
+      await perform(context, () async {
+        if (ref.read(appProvider).connected) {
+          await ref.read(appProvider.notifier).disconnectBackend();
+        }
+        router.go('/account');
+      });
+    } finally {
+      if (mounted) setState(() => switching = false);
+    }
+  }
+
+  Future<void> retryConnection() async {
+    if (busy || switching) return;
+    setState(() => switching = true);
+    try {
+      await perform(
+        context,
+        () => ref.read(appProvider.notifier).retrySavedConnection(),
+      );
     } finally {
       if (mounted) setState(() => switching = false);
     }
@@ -86,38 +158,237 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     bool retry = false,
     String? messageId,
   }) async {
-    if (busy || text.trim().isEmpty) {
+    if (busy ||
+        switching ||
+        text.trim().isEmpty ||
+        ref.read(appProvider.notifier).needsConnectionRecovery) {
       return;
     }
+    final key = activeKey;
+    final before = ref.read(appProvider).messages.map((m) => m.id).toSet();
+    final clearComposer = !retry && input.text.trim() == text.trim();
     setState(() {
       busy = true;
-      error = null;
+      failure = null;
+      failedId = null;
     });
-    if (!retry) input.clear();
+    if (clearComposer) {
+      input.clear();
+      draft('');
+    }
+    followReply = true;
     try {
-      final future = ref
+      final pending = ref
           .read(appProvider.notifier)
           .send(text, task, retry: retry, retryMessageId: messageId);
-      scrollDown();
-      await future;
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          error = '$e';
-        });
+      latest(force: true);
+      await pending;
+      if (mounted) latest();
+    } catch (error) {
+      if (!mounted) return;
+      final saved = ref
+          .read(appProvider)
+          .messages
+          .where(
+            (m) =>
+                m.user &&
+                (retry ? m.id == messageId : !before.contains(m.id)) &&
+                m.delivery == 'failed',
+          )
+          .lastOrNull;
+      setState(() {
+        failure = error is AppFailure ? error : AppFailure('$error');
+        failedId = saved?.id;
+      });
+      if (clearComposer && saved == null && key == activeKey) {
+        input.text = text;
+        draft(text);
       }
     } finally {
-      if (mounted) {
-        setState(() => busy = false);
-        scrollDown();
-      }
+      if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> conversations(AppState snapshot, String selected) async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) =>
+          ConversationPicker(snapshot: snapshot, selected: selected),
+    );
+    if (!mounted || result == null) return;
+    final current = ref.read(appProvider);
+    if (chatOwner(current) != chatOwner(snapshot) ||
+        current.condition != snapshot.condition) {
+      return;
+    }
+    setState(() => taskId = result);
+    if (!ref.read(appProvider.notifier).needsConnectionRecovery) {
+      await perform(
+        context,
+        () => ref.read(appProvider.notifier).selectChatTask(result),
+      );
+    }
+  }
+
+  void information(AppState state, bool linked) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.uxChatInfo,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              if (state.error != null) Text(context.tr(state.error!)),
+              Text(context.tr(state.condition.label)),
+              Text(
+                state.condition == StudyCondition.selfAgent
+                    ? context.l10n.reflectionAutonomy_27a6a7
+                    : context.l10n.empathyGentleSupport_69b918,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                state.connected
+                    ? context
+                          .l10n
+                          .connectedDevelopmentUsesASyntheticAccount_13f12b
+                    : context.l10n.scriptedDemoExplanation,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                state.connected
+                    ? linked
+                          ? context.l10n.linkedAgentAccounts
+                          : context.l10n.assignedByTheStudyBackendAgent_fcf49b
+                    : context.l10n.researcherDemoSeparateAgentHistories_2e583b,
+              ),
+              Text(context.l10n.messagesAndRetriesStayLinkedTo_f396c0),
+              if (!state.connected && AppConfig.researcherDemo)
+                TextButton.icon(
+                  icon: const Icon(Icons.cloud_outlined),
+                  label: Text(context.l10n.connectRealChat),
+                  onPressed: () {
+                    Navigator.pop(sheet);
+                    context.push('/backend');
+                  },
+                ),
+              TextButton.icon(
+                icon: const Icon(Icons.settings_outlined),
+                label: Text(context.l10n.settings_c7f73b),
+                onPressed: () {
+                  Navigator.pop(sheet);
+                  context.push('/settings');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void more(Task? task, bool blocked, bool archived) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(title: Text(context.l10n.uxMoreActions)),
+              ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: Text(context.l10n.correctThisTask_ef9d4d),
+                enabled: !blocked && task != null && !task.done && !task.paused,
+                onTap: () {
+                  Navigator.pop(sheet);
+                  showCorrectionSheet(context, task!);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.lightbulb_outline),
+                title: Text(context.l10n.reflectOnMyGoal_6d1d30),
+                enabled: !blocked && !archived,
+                onTap: () {
+                  Navigator.pop(sheet);
+                  send(context.l10n.helpMeReflectOnMyGoal_d4b855, task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_none),
+                title: Text(context.l10n.remindMeLater_bebc1c),
+                enabled: !blocked && task != null && !task.done && !task.paused,
+                onTap: () {
+                  Navigator.pop(sheet);
+                  showReminderSheet(context, ref, task!);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String failureText(AppFailure? error) => switch (error?.code) {
+    'network' => context.l10n.msgNetwork,
+    'timeout' => context.l10n.msgTimeout,
+    'limited' => context.l10n.msgLimited,
+    'provider' => context.l10n.msgProvider,
+    'pending' => context.l10n.msgPending,
+    'malformed' => context.l10n.msgMalformed,
+    _ =>
+      error == null ? context.l10n.msgCouldNotSend : context.tr(error.message),
+  };
+  Future<void> messageOption(String choice, ChatMessage message) async {
+    if (choice == 'details') {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(context.l10n.msgDetails),
+          content: Text(failureText(failedId == message.id ? failure : null)),
+        ),
+      );
+      return;
+    }
+    await perform(context, () async {
+      await ref.read(appProvider.notifier).cancelMessage(message.id);
+      if (!mounted) return;
+      setState(() {
+        failure = null;
+        failedId = null;
+      });
+      if (choice == 'edit') {
+        input.text = message.text;
+        draft(message.text);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(appProvider);
+    final controller = ref.read(appProvider.notifier);
+    final recovery = controller.needsConnectionRecovery,
+        expired = controller.sessionExpired;
     final condition = state.condition;
+    ref.read(
+      chatMemoryProvider,
+    ); // activate account-transition cleanup even without a draft
     if (!condition.hasAgent) {
       return EmptyPanel(
         context.l10n.standardTaskSupport_4fe425,
@@ -134,399 +405,416 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             state.messages.any((m) => m.taskId == candidate)
         ? candidate
         : '__general__';
-    final contextId = selected == '__general__' ? null : selected;
-    final task = state.tasks.where((t) => t.id == contextId).firstOrNull;
-    final archived = contextId != null && task == null;
+    final task = state.tasks.where((t) => t.id == selected).firstOrNull;
+    final archived = selected != '__general__' && task == null;
     final messages = state.messages
-        .where((m) => m.taskId == contextId)
+        .where((m) => (m.taskId ?? '__general__') == selected)
         .toList();
-    final archivedIds = state.messages
-        .map((m) => m.taskId)
-        .whereType<String>()
-        .where((id) => !state.tasks.any((t) => t.id == id))
-        .toSet();
-    final otherAgent = condition == StudyCondition.selfAgent
-        ? StudyCondition.friendAgent
-        : StudyCondition.selfAgent;
+    final key = chatKey(state, selected);
+    bind(key, messages.lastOrNull?.id);
+    if (lastMessage != messages.lastOrNull?.id) {
+      lastMessage = messages.lastOrNull?.id;
+      if (messages.lastOrNull?.user == false) latest();
+    }
     ref.watch(savedConnectionsProvider);
-    final liveSwitch = ref
-        .read(appProvider.notifier)
-        .canSwitchLiveTo(otherAgent);
+    final linked = controller.canSwitchLiveTo(
+      condition == StudyCondition.selfAgent
+          ? StudyCondition.friendAgent
+          : StudyCondition.selfAgent,
+    );
+    final blocked = busy || switching || recovery;
     final canSwitch =
-        AppConfig.researcherDemo &&
-        (!state.connected || liveSwitch) &&
-        !busy &&
-        !switching;
+        AppConfig.researcherDemo && (!state.connected || linked) && !blocked;
+    final status = expired
+        ? context.l10n.msgSignInRequired
+        : recovery
+        ? context.l10n.msgUnavailable
+        : state.connected
+        ? context.l10n.msgConnected
+        : context.l10n.msgDemo;
+    final conversationTitle =
+        task?.title ??
+        (archived
+            ? context.l10n.archivedTaskConversation_426aa2
+            : context.l10n.generalConversation_90962d);
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (context, size) {
         final compact =
-            constraints.maxHeight < 380 ||
-            MediaQuery.textScalerOf(context).scale(14) > 21;
+            size.maxHeight < 300 ||
+            MediaQuery.textScalerOf(context).scale(14) > 24;
+        Widget contextRow() => Material(
+          color: Colors.transparent,
+          child: ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: Text(
+              conversationTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: compact ? null : Text(context.l10n.taskContext_0eecee),
+            trailing: const Icon(Icons.expand_more),
+            enabled: !busy && !switching,
+            onTap: () => conversations(state, selected),
+          ),
+        );
+        final tiny = size.maxHeight < 210;
+        final header = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              if (!compact)
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: FittedBox(child: AgentAvatar(condition)),
+                ),
+              if (!compact) const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr(condition.label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (!compact)
+                      Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+              if (compact)
+                IconButton(
+                  tooltip: context.l10n.switchTo_ce5010(
+                    context.tr(
+                      condition == StudyCondition.selfAgent
+                          ? StudyCondition.friendAgent.label
+                          : StudyCondition.selfAgent.label,
+                    ),
+                  ),
+                  onPressed: canSwitch
+                      ? () => perform(
+                          context,
+                          () => switchAgent(
+                            condition == StudyCondition.selfAgent
+                                ? StudyCondition.friendAgent
+                                : StudyCondition.selfAgent,
+                          ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.swap_horiz),
+                ),
+              if (recovery)
+                IconButton(
+                  tooltip: context.l10n.reconnectAccount,
+                  onPressed: busy || switching ? null : signInAgain,
+                  icon: const Icon(Icons.login),
+                ),
+              IconButton(
+                tooltip: context.l10n.uxChatInfo,
+                onPressed: () => information(state, linked),
+                icon: Icon(
+                  state.error == null ? Icons.more_vert : Icons.info_outline,
+                  color: state.error == null
+                      ? null
+                      : Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+        );
         return Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!compact)
-                    Row(
-                      children: [
-                        AgentAvatar(condition),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+            if (!tiny) header,
+            if (!compact)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final agent in [
+                      StudyCondition.selfAgent,
+                      StudyCondition.friendAgent,
+                    ])
+                      ChoiceChip(
+                        label: Text(context.tr(agent.label)),
+                        selected: condition == agent,
+                        onSelected: canSwitch
+                            ? (_) => perform(context, () => switchAgent(agent))
+                            : null,
+                      ),
+                  ],
+                ),
+              ),
+            if (!compact) contextRow(),
+            Expanded(
+              child: NotificationListener<UserScrollNotification>(
+                onNotification: (notification) {
+                  if (scroll.hasClients) {
+                    followReply = scroll.position.extentAfter < 100;
+                    if (followReply && newReply) {
+                      setState(() => newReply = false);
+                    }
+                  }
+                  return false;
+                },
+                child: ListView(
+                  key: PageStorageKey(key),
+                  controller: scroll,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  children: [
+                    if (tiny) header,
+                    if (compact) contextRow(),
+                    if (archived)
+                      Text(
+                        context.l10n.thisTaskWasDeletedItsConversation_35be64,
+                      ),
+                    if (messages.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: EmptyPanel(
+                          context.l10n.msgStart,
+                          context.l10n.msgStartHint,
+                        ),
+                      ),
+                    for (var i = 0; i < messages.length; i++) ...[
+                      if (i == 0 ||
+                          !_sameDay(messages[i - 1].at, messages[i].at))
+                        MessageDay(messages[i].at),
+                      MessageBubble(
+                        messages[i],
+                        key: ValueKey('message-${messages[i].id}'),
+                        acknowledgement: messages[i].user
+                            ? messages[i].delivery == 'sent'
+                                  ? state.connected
+                                        ? context.l10n.uxServerSaved
+                                        : context.l10n.uxLocalSaved
+                                  : messages[i].delivery == 'sending'
+                                  ? state.chatPhase == 'waiting'
+                                        ? context.l10n.uxWaiting
+                                        : context.l10n.uxSending
+                                  : null
+                            : null,
+                      ),
+                      if (messages[i].user && messages[i].delivery == 'failed')
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
-                                context.tr(condition.label),
-                                style: Theme.of(context).textTheme.titleLarge,
+                                context.l10n.msgCouldNotSend,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
                               ),
-                              Text(
-                                condition == StudyCondition.selfAgent
-                                    ? context.l10n.reflectionAutonomy_27a6a7
-                                    : context.l10n.empathyGentleSupport_69b918,
-                                style: Theme.of(context).textTheme.bodySmall,
+                              TextButton(
+                                onPressed: blocked || archived
+                                    ? null
+                                    : () => send(
+                                        messages[i].text,
+                                        task,
+                                        retry: true,
+                                        messageId: messages[i].id,
+                                      ),
+                                child: Text(context.l10n.tryAgain_042c86),
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: context.l10n.msgMessageOptions,
+                                onSelected: (choice) =>
+                                    messageOption(choice, messages[i]),
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: 'details',
+                                    child: Text(context.l10n.msgDetails),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    enabled: !blocked && !archived,
+                                    child: Text(
+                                      context.l10n.editMessage_96116a,
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'cancel',
+                                    enabled: !busy && !switching,
+                                    child: Text(
+                                      context.l10n.cancelRetry_09ba40,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  if (!compact) const SizedBox(height: 8),
-                  if (constraints.maxHeight < 250)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            context.tr(condition.label),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      if (messages[i].delivery == 'cancelled')
+                        Text(
+                          context.l10n.msgCancelled,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        Tooltip(
-                          message: context.l10n.switchTo_ce5010(
-                            context.tr((otherAgent.label).toString()),
-                          ),
-                          child: TextButton.icon(
-                            onPressed: canSwitch
-                                ? () => perform(
-                                    context,
-                                    () => switchAgent(otherAgent),
-                                  )
-                                : null,
-                            icon: const Icon(Icons.swap_horiz),
-                            label: Text(context.l10n.switch_3e44c9),
-                          ),
+                    ],
+                    if (failure != null && failedId == null && !recovery)
+                      Text(
+                        failureText(failure),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
                         ),
-                      ],
-                    )
-                  else
+                      ),
+                    if (state.error != null && !recovery)
+                      Text(context.tr(state.error!)),
+                    if (!blocked)
+                      AgentTaskActions(
+                        key: ValueKey(('suggestion', key)),
+                        task: task,
+                        request: messages.where((m) => m.user).lastOrNull,
+                      ),
                     Wrap(
                       spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        for (final agent in [
-                          StudyCondition.selfAgent,
-                          StudyCondition.friendAgent,
-                        ])
-                          ChoiceChip(
-                            label: Text(context.tr(agent.label)),
-                            selected: condition == agent,
-                            onSelected: canSwitch
-                                ? (_) =>
-                                      perform(context, () => switchAgent(agent))
-                                : null,
+                        ActionChip(
+                          label: Text(context.l10n.chooseAFocusSession_41945f),
+                          onPressed:
+                              blocked ||
+                                  task == null ||
+                                  task.done ||
+                                  task.paused
+                              ? null
+                              : () => showFocusSheet(context, ref, task),
+                        ),
+                        if (task != null)
+                          ActionChip(
+                            label: Text(context.l10n.breakItDown_5798bd),
+                            onPressed: blocked || task.done || task.paused
+                                ? null
+                                : () => context.push(
+                                    '/refine/${Uri.encodeComponent(task.id)}',
+                                  ),
+                          )
+                        else
+                          ActionChip(
+                            label: Text(context.l10n.reflectOnMyGoal_6d1d30),
+                            onPressed: blocked || archived
+                                ? null
+                                : () => send(
+                                    context.l10n.helpMeReflectOnMyGoal_d4b855,
+                                    task,
+                                  ),
                           ),
                       ],
                     ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scroll,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                children: [
-                  if (!state.connected && AppConfig.researcherDemo) ...[
-                    Text(
-                      context.l10n.scriptedDemoExplanation,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    TextButton.icon(
-                      onPressed: busy || switching
-                          ? null
-                          : () => context.push('/backend'),
-                      icon: const Icon(Icons.cloud_outlined),
-                      label: Text(context.l10n.connectRealChat),
-                    ),
-                  ],
-                  Text(
-                    state.connected
-                        ? liveSwitch
-                              ? context.l10n.linkedAgentAccounts
-                              : context
-                                    .l10n
-                                    .assignedByTheStudyBackendAgent_fcf49b
-                        : context
-                              .l10n
-                              .researcherDemoSeparateAgentHistories_2e583b,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Chip(
-                      label: Text(
-                        condition == StudyCondition.selfAgent
-                            ? context.l10n.selfReflection_4445e0
-                            : context.l10n.supportiveChat_6a8335,
-                        style: const TextStyle(fontSize: 11),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () => more(task, blocked, archived),
+                        child: Text(context.l10n.uxMoreActions),
                       ),
-                      backgroundColor: softColor(
-                        context,
-                        condition == StudyCondition.selfAgent
-                            ? AppTokens.mint
-                            : AppTokens.lavender,
-                      ),
-                      side: BorderSide.none,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('${condition.name}-$selected'),
-                    initialValue: selected,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: context.l10n.taskContext_0eecee,
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: '__general__',
-                        child: Text(context.l10n.generalConversation_90962d),
-                      ),
-                      ...state.tasks.map(
-                        (t) => DropdownMenuItem(
-                          value: t.id,
-                          child: Text(t.title, overflow: TextOverflow.ellipsis),
-                        ),
-                      ),
-                      for (final id in archivedIds)
-                        DropdownMenuItem(
-                          value: id,
-                          child: Text(
-                            context.l10n.archivedTaskConversation_426aa2,
+                    if (recovery)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            expired
+                                ? context.l10n.sessionExpiredMessage
+                                : context.l10n.connectionRestoreFailed,
                           ),
-                        ),
-                    ],
-                    onChanged: busy
-                        ? null
-                        : (v) {
-                            setState(() {
-                              taskId = v;
-                              error = null;
-                            });
-                            ref.read(appProvider.notifier).selectChatTask(v);
-                          },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    archived
-                        ? context.l10n.thisTaskWasDeletedItsConversation_35be64
-                        : context.l10n.messagesAndRetriesStayLinkedTo_f396c0,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 24),
-                  if (messages.isEmpty)
-                    MessageBubble(
-                      ChatMessage(
-                        id: 'intro',
-                        text: condition == StudyCondition.selfAgent
-                            ? 'What matters to you about the task you would like to begin?\n\nYou can choose a small step that fits your goals.'
-                            : 'Starting can feel difficult sometimes.\n\nWould you like to talk about what feels hard, or try one small step together?',
-                        user: false,
-                        at: DateTime.now(),
-                      ),
-                    ),
-                  for (final message in messages) ...[
-                    MessageBubble(message),
-                    if (message.user && message.delivery == 'failed')
-                      Panel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.l10n.theResponseDidNotArriveYou_c601c2,
-                            ),
-                            Wrap(
-                              spacing: 8,
-                              children: [
+                          Wrap(
+                            children: [
+                              if (!expired)
                                 TextButton(
-                                  onPressed: busy || archived
+                                  onPressed: busy || switching
                                       ? null
-                                      : () => send(
-                                          message.text,
-                                          task,
-                                          retry: true,
-                                          messageId: message.id,
-                                        ),
-                                  child: Text(context.l10n.tryAgain_042c86),
+                                      : retryConnection,
+                                  child: Text(context.l10n.retryConnection),
                                 ),
-                                TextButton(
-                                  onPressed: busy || archived
-                                      ? null
-                                      : () async {
-                                          await ref
-                                              .read(appProvider.notifier)
-                                              .cancelMessage(message.id);
-                                          if (mounted) {
-                                            setState(() {
-                                              input.text = message.text;
-                                              error = null;
-                                            });
-                                          }
-                                        },
-                                  child: Text(context.l10n.editMessage_96116a),
-                                ),
-                                TextButton(
-                                  onPressed: busy
-                                      ? null
-                                      : () async {
-                                          await ref
-                                              .read(appProvider.notifier)
-                                              .cancelMessage(message.id);
-                                          if (mounted) {
-                                            setState(() => error = null);
-                                          }
-                                        },
-                                  child: Text(context.l10n.cancelRetry_09ba40),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (message.delivery == 'cancelled')
-                      Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          context
-                              .l10n
-                              .responseRetryCancelledMessageKeptIn_33e3a4,
-                        ),
+                              TextButton(
+                                onPressed: busy || switching
+                                    ? null
+                                    : signInAgain,
+                                child: Text(context.l10n.reconnectAccount),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                   ],
-                  if (busy)
-                    Semantics(
-                      liveRegion: true,
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          state.connected
-                              ? context.l10n.agentIsComposingAResponse_ec1bc2
-                              : context
-                                    .l10n
-                                    .agentIsComposingADemoResponse_66b3f0,
-                        ),
-                      ),
-                    ),
-                  if (error != null)
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  AgentTaskActions(
-                    task: task,
-                    request: messages.where((m) => m.user).lastOrNull,
-                  ),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      ActionChip(
-                        label: Text(context.l10n.correctThisTask_ef9d4d),
-                        onPressed:
-                            task == null || task.done || task.paused || busy
-                            ? null
-                            : () => showCorrectionSheet(context, task),
-                      ),
-                      ActionChip(
-                        label: Text(context.l10n.chooseAFocusSession_41945f),
-                        onPressed: task == null || task.done || task.paused
-                            ? null
-                            : () => showFocusSheet(context, ref, task),
-                      ),
-                      ActionChip(
-                        label: Text(context.l10n.breakItDown_5798bd),
-                        onPressed: task == null || task.done
-                            ? null
-                            : () => context.push('/refine/${task.id}'),
-                      ),
-                      ActionChip(
-                        label: Text(context.l10n.reflectOnMyGoal_6d1d30),
-                        onPressed: busy || archived
-                            ? null
-                            : () => send(
-                                context.l10n.helpMeReflectOnMyGoal_d4b855,
-                                task,
-                              ),
-                      ),
-                      ActionChip(
-                        label: Text(context.l10n.remindMeLater_bebc1c),
-                        onPressed: task == null || task.done || task.paused
-                            ? null
-                            : () => showReminderSheet(context, ref, task),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    state.connected
-                        ? context.l10n.connectedDevelopmentAiRepliesMayBe_ab7a5a
-                        : context.l10n.demonstrationResponsesNotALiveAi_83abaf,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                ),
               ),
             ),
+            if (newReply)
+              TextButton.icon(
+                onPressed: () {
+                  followReply = true;
+                  latest(force: true);
+                },
+                icon: const Icon(Icons.arrow_downward),
+                label: Text(context.l10n.uxNewReply),
+              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: TextField(
+                      key: const ValueKey('chat-composer'),
                       controller: input,
+                      enabled: !recovery && !switching && !archived,
                       minLines: 1,
-                      maxLines: 4,
+                      maxLines: tiny
+                          ? 1
+                          : compact
+                          ? 2
+                          : 4,
                       maxLength: 2000,
                       decoration: InputDecoration(
+                        hintMaxLines: 1,
                         hintText: context.l10n.messageYour_e972d5(
-                          context.tr(
-                            (condition.label.toLowerCase()).toString(),
-                          ),
+                          context.tr(condition.label),
                         ),
                         counterText: '',
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(26),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
                       ),
+                      onChanged: (value) {
+                        draft(value);
+                        setState(() {});
+                      },
                       textInputAction: TextInputAction.newline,
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
                     tooltip: context.l10n.sendMessage_c70a89,
-                    onPressed: busy || archived
-                        ? null
-                        : () => send(input.text, task),
-                    icon: const Icon(Icons.arrow_forward),
                     constraints: const BoxConstraints(
                       minWidth: 48,
                       minHeight: 48,
                     ),
+                    onPressed: blocked || archived || input.text.trim().isEmpty
+                        ? null
+                        : () => send(input.text, task),
+                    icon: const Icon(Icons.arrow_upward),
                   ),
                 ],
               ),
@@ -536,41 +824,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       },
     );
   }
-}
 
-class MessageBubble extends StatelessWidget {
-  final ChatMessage message;
-  const MessageBubble(this.message, {super.key});
-  @override
-  Widget build(BuildContext context) => Align(
-    alignment: message.user ? Alignment.centerRight : Alignment.centerLeft,
-    child: FractionallySizedBox(
-      widthFactor: message.user ? 0.84 : 1,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: message.user
-              ? AppTokens.teal
-              : Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(19),
-        ),
-        child: Semantics(
-          label: message.user
-              ? context.l10n.you_905cb3
-              : context.l10n.agent_5ce2e6,
-          child: SelectableText(
-            message.text,
-            style: TextStyle(
-              color: message.user
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurface,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
+  bool _sameDay(DateTime a, DateTime b) {
+    final left = a.toLocal(), right = b.toLocal();
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
 }

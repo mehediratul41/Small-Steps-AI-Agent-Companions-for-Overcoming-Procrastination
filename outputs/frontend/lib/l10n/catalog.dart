@@ -652,7 +652,7 @@ String translateValue(AppLocalizations l, String value) {
     case "Response retry cancelled. Message kept in history.":
       return l.responseRetryCancelledMessageKeptIn_33e3a4;
     case "Resume session":
-      return l.resumeSession_bcc407;
+      return l.uxResume;
     case "Resume this task":
       return l.resumeThisTask_a4926e;
     case "Retry":
@@ -926,7 +926,7 @@ String translateValue(AppLocalizations l, String value) {
     case "Try again":
       return l.tryAgain_042c86;
     case "Unclear":
-      return l.unclear_ff75e0;
+      return l.difficultyUnclear;
     case "Undo":
       return l.undo_39fc72;
     case "Unknown notification report.":
@@ -937,7 +937,7 @@ String translateValue(AppLocalizations l, String value) {
       return l.upNext_567bfc;
     case "Updating reminders":
       return l.updatingReminders_d06961;
-    case "Use a localhost/emulator HTTP address or an HTTPS backend URL.":
+    case "Use HTTPS. Local HTTP is available only in debug builds on the matching simulator or computer.":
       return l.useALocalhostEmulatorHttpAddress_92a22a;
     case "Use assigned agent wording":
       return l.useAssignedAgentWording_104d77;
@@ -1105,6 +1105,198 @@ String translateValue(AppLocalizations l, String value) {
       return l.followingPlansCode;
     case "unwanted delay":
       return l.unwantedDelayCode;
+    case "My start plan":
+      return l.supportPlan;
+    case "Optional. Choose a situation and one small action. Nothing changes until you save.":
+      return l.supportPlanHint;
+    case "When / where (for example, after lunch at my desk)":
+      return l.startCue;
+    case "Then I will… (for example, open the slides)":
+      return l.startAction;
+    case "What would starting today make easier tomorrow?":
+      return l.futureNote;
+    case "Optional note for Self-Agent. It is not shared with Friend-Agent.":
+      return l.futureNoteHint;
+    case "Save my plan":
+      return l.saveSupport;
+    case "Your plan is saved. Reminders are unchanged.":
+      return l.supportSaved;
+    case "Enter both a situation and an action, or clear both.":
+      return l.supportIncomplete;
+    case "What is making this difficult?":
+      return l.difficultyQuestion;
+    case "Optional. You can skip this or clear your choice.":
+      return l.difficultyOptional;
+    case "Overwhelming":
+      return l.difficultyOverwhelming;
+    case "Worried":
+      return l.difficultyWorried;
+    case "Distracted":
+      return l.difficultyDistracted;
+    case "Tired":
+      return l.difficultyTired;
+    case "Choose one concrete next action. You can write it in your small steps.":
+      return l.supportUnclear;
+    case "Keep just one manageable step. You can leave the rest for later.":
+      return l.supportOverwhelming;
+    case "An imperfect first attempt is an option. You can also choose another time.":
+      return l.supportWorried;
+    case "If helpful, put one distraction aside before a short session.":
+      return l.supportDistracted;
+    case "Rest or choose another time. Starting now is optional.":
+      return l.supportTired;
+    case "Pause reminders today":
+      return l.pauseToday;
+    case "Resume reminders":
+      return l.resumeReminders;
+    case "No reminders before tomorrow. Suppressed reminders will not be replayed.":
+      return l.pauseHint;
+    case "Edit a smaller step":
+      return l.supportSmallStep;
+    case "Not now / adjust plan":
+      return l.supportNotNow;
+    case "Scripted demo: replies are examples, not live AI.":
+      return l.scriptedDemoExplanation;
+    case "Connect AI backend":
+      return l.connectRealChat;
+    case "Researcher live demo: switching opens a separate synthetic account, with its own tasks and history. Study assignments stay unchanged.":
+      return l.linkedAgentAccounts;
+    case "Link the other agent account":
+      return l.addAgentAccount;
+    case "Forget saved agent logins":
+      return l.forgetAgentLogins;
+    case "Remember this synthetic agent account":
+      return l.rememberAgentLogin;
+    case "DEV- accounts only. Android/iOS use secure device storage. Browser previews remember only for this session.":
+      return l.rememberAgentHint;
+    case "Start 5 minutes":
+      return l.uxStartFive;
+    case "Choose duration":
+      return l.uxChooseDuration;
+    case "Make smaller · Reschedule · Pause":
+      return l.uxRecovery;
+    case "About this conversation":
+      return l.uxChatInfo;
+    case "More actions":
+      return l.uxMoreActions;
+    case "Fewer actions":
+      return l.uxFewerActions;
+    case "New reply · Show latest":
+      return l.uxNewReply;
+    case "Sending…":
+      return l.uxSending;
+    case "Waiting for reply…":
+      return l.uxWaiting;
+    case "Saved on server":
+      return l.uxServerSaved;
+    case "Kept in local demo":
+      return l.uxLocalSaved;
+    case "Use an editable example":
+      return l.uxExample;
+    case "After lunch":
+      return l.uxExampleCue;
+    case "Open one paper and read its abstract":
+      return l.uxExampleAction;
+    case "Draft only. Save to apply; text cues do not schedule reminders.":
+      return l.uxDraftHint;
+    case "Review one smaller step":
+      return l.uxReviewStep;
+    case "Try a rough first attempt":
+      return l.uxRoughDraft;
+    case "Choose one distraction to put aside":
+      return l.uxDistraction;
+    case "Make a rough first attempt at: ":
+      return l.uxDraftAction;
+    case "Put one distraction aside, then begin: ":
+      return l.uxDistractionAction;
+    case "Skip":
+      return l.uxSkip;
+    case "What helped?":
+      return l.uxFeedback;
+    case "Optional development feedback. No score or effectiveness claim.":
+      return l.uxFeedbackHint;
+    case "Smaller step":
+      return l.uxSmallerStep;
+    case "Clear plan":
+      return l.uxClearPlan;
+    case "Encouragement":
+      return l.uxEncouragement;
+    case "Quiet time":
+      return l.uxQuietTime;
+    case "Last time, you selected:":
+      return l.uxFeedbackLast;
+    case "Your selection is recorded locally; connected reports synchronize with the server.":
+      return l.uxFeedbackStorage;
+    case "Less support today":
+      return l.uxLessSupport;
+    case "Pause all task reminders until tomorrow?":
+      return l.uxPauseAll;
+    case "This pauses all Small Steps task reminders until the next local day, including scheduled start and deadline reminders. Suppressed reminders are not replayed. You can resume in notification settings.":
+      return l.uxPauseAllHint;
+    case "Could not record feedback. Try again.":
+      return l.uxFeedbackError;
+    case "Saved connection unavailable. Retry, or sign in again. Chat is paused; previous demo messages are not live replies.":
+      return l.connectionRestoreFailed;
+    case "Retry connection":
+      return l.retryConnection;
+    case "Sign in again":
+      return l.reconnectAccount;
+    case "Saved AI connection unavailable. Reconnect the backend before chatting.":
+      return l.savedConnectionLegacyError;
+    case "Small Steps · Sign-in required":
+      return l.sessionExpiredTitle;
+    case "Your session expired or was revoked. Sign in again; retrying the message cannot renew it.":
+      return l.sessionExpiredMessage;
+    case "Connected":
+      return l.msgConnected;
+    case "Scripted demo":
+      return l.msgDemo;
+    case "Connection unavailable":
+      return l.msgUnavailable;
+    case "Conversations":
+      return l.msgConversations;
+    case "Search loaded conversations":
+      return l.msgSearch;
+    case "Search covers loaded titles and messages on this account and agent only.":
+      return l.msgSearchHint;
+    case "No messages yet":
+      return l.msgNoMessages;
+    case "No matching conversations":
+      return l.msgNoResults;
+    case "Start a conversation":
+      return l.msgStart;
+    case "Write a message, or choose a task to discuss.":
+      return l.msgStartHint;
+    case "Couldn’t send":
+      return l.msgCouldNotSend;
+    case "Message options":
+      return l.msgMessageOptions;
+    case "Failure details":
+      return l.msgDetails;
+    case "Connection problem. Your message is kept for retry.":
+      return l.msgNetwork;
+    case "The request timed out. Check its status by retrying the same message.":
+      return l.msgTimeout;
+    case "The service is busy or rate-limited. Wait before retrying.":
+      return l.msgLimited;
+    case "AI or study service unavailable. Try later; no task changes were applied.":
+      return l.msgProvider;
+    case "This attempt is unresolved. Retry checks the same request; cancel before explicitly making a new attempt.":
+      return l.msgPending;
+    case "The service returned an unexpected response. Your message is retained.":
+      return l.msgMalformed;
+    case "Copy message":
+      return l.msgCopy;
+    case "Message copied":
+      return l.msgCopied;
+    case "Retry cancelled · message retained":
+      return l.msgCancelled;
+    case "Draft":
+      return l.msgDraft;
+    case "Sign-in required":
+      return l.msgSignInRequired;
+    case "Task-based suggestion · review before changing.":
+      return l.msgTaskSupportSource;
   }
   {
     final match = RegExp(
